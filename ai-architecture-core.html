@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Architecture Core</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+[hidden]{display:none!important}
+img{max-width:100%}
+
+/* Layout: a single reading column beside a sticky "stack" rail; the stack is the map, sections are the territory. */
+:root {
+  --paper: #eef1f4;
+  --sheet: #f8fafb;
+  --ink: #15212c;
+  --muted: #56636f;
+  --line: #cfd6dd;
+  --accent: #2c55c9;
+  --accent-soft: #dfe7fa;
+  --signal: #b4521b;
+  --l1: #2c55c9; --l2: #4a46b8; --l3: #0f7c84; --l4: #1d6a3f;
+  --l5: #7b5a12; --l6: #b4521b; --l7: #8a3a5c; --l8: #4b5866;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f151b; --sheet: #151d25; --ink: #e3e9ee; --muted: #93a0ac; --line: #2a3540;
+    --accent: #7f9ef0; --accent-soft: #1d2a45; --signal: #e58a55;
+    --l1: #7f9ef0; --l2: #9d97ec; --l3: #4fc1c8; --l4: #63c08a;
+    --l5: #d6b25a; --l6: #e58a55; --l7: #d982a6; --l8: #9aa7b4;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f151b; --sheet: #151d25; --ink: #e3e9ee; --muted: #93a0ac; --line: #2a3540;
+  --accent: #7f9ef0; --accent-soft: #1d2a45; --signal: #e58a55;
+  --l1: #7f9ef0; --l2: #9d97ec; --l3: #4fc1c8; --l4: #63c08a;
+  --l5: #d6b25a; --l6: #e58a55; --l7: #d982a6; --l8: #9aa7b4;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.6; padding: 0 16px; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-block: 40px 80px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.75rem; font-weight: 600; }
+h3 { font-size: 1.15rem; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* Header */
+header.top { display: grid; gap: 14px; padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+header.top p.lede { font-size: 1.12rem; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+
+/* Main grid */
+.grid { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 48px; margin-top: 36px; align-items: start; }
+@media (max-width: 880px) { .grid { grid-template-columns: minmax(0, 1fr); gap: 32px; } .rail { position: static !important; } }
+
+/* Stack rail */
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); display: grid; gap: 10px; }
+.stack { display: grid; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.stack a { display: grid; grid-template-columns: 6px 1fr auto; gap: 12px; align-items: center; text-decoration: none; color: var(--ink); background: var(--sheet); border: 1px solid var(--line); padding: 9px 12px 9px 0; border-radius: 4px; }
+.stack a:hover { border-color: var(--accent); }
+.stack .bar { width: 6px; height: 100%; min-height: 30px; border-radius: 4px 0 0 4px; }
+.stack .nm { font-family: var(--display); font-weight: 600; font-size: 0.98rem; line-height: 1.2; }
+.stack .lv { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+.cross { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); border: 1px dashed var(--line); border-radius: 4px; padding: 10px 12px; line-height: 1.5; }
+.cross strong { color: var(--ink); font-weight: 500; }
+
+/* Content */
+main { display: grid; gap: 64px; min-width: 0; }
+section { display: grid; gap: 18px; min-width: 0; scroll-margin-top: 20px; }
+.sec-head { display: grid; gap: 6px; }
+.layer-tag { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.layer-tag i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 28px; }
+.cols > div { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.cols h4 { margin: 0; font-family: var(--mono); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+ul.plain { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
+ul.plain li::marker { color: var(--muted); }
+.figure { font-family: var(--mono); font-size: 0.85rem; background: var(--sheet); border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; overflow-x: auto; line-height: 1.7; font-variant-numeric: tabular-nums; }
+.figure b { color: var(--signal); font-weight: 500; }
+
+/* Daily note */
+.daily { background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 22px; display: grid; gap: 16px; }
+.daily-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+.note { display: grid; gap: 10px; }
+.note .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-family: var(--mono); font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.note .chip { color: var(--accent); background: var(--accent-soft); padding: 1px 8px; border-radius: 99px; }
+.note h3 { font-size: 1.4rem; }
+.note .body { display: grid; gap: 10px; }
+.note .take { border-top: 1px solid var(--line); padding-top: 10px; }
+.archive { display: grid; gap: 6px; }
+.archive details { border-top: 1px solid var(--line); padding-top: 8px; }
+.archive summary { cursor: pointer; display: flex; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+.archive summary .d { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.archive details .note { padding: 10px 0 6px; }
+.empty { color: var(--muted); }
+.status { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+
+form.compose { display: grid; gap: 10px; border-top: 1px dashed var(--line); padding-top: 16px; }
+form.compose .row { display: grid; grid-template-columns: 150px minmax(0,1fr) 200px; gap: 10px; }
+@media (max-width: 640px) { form.compose .row { grid-template-columns: minmax(0,1fr); } }
+form.compose label { display: grid; gap: 4px; font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); min-width: 0; }
+input, textarea, select { font: inherit; font-size: 0.95rem; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; width: 100%; text-transform: none; letter-spacing: 0; }
+textarea { min-height: 120px; resize: vertical; }
+button { font-family: var(--display); font-weight: 600; font-size: 0.98rem; background: var(--accent); color: var(--sheet); border: 0; border-radius: 4px; padding: 9px 18px; cursor: pointer; justify-self: start; }
+button:disabled { opacity: 0.6; cursor: default; }
+
+/* Transformer diagram */
+.diagram-wrap { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 760px) { .diagram-wrap { grid-template-columns: minmax(0, 1fr); } }
+.diagram { overflow-x: auto; background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+.diagram svg { display: block; width: 100%; max-width: 320px; height: auto; margin: 0 auto; }
+.diagram text { font-family: var(--mono); font-size: 11px; fill: var(--ink); }
+.diagram .sub { fill: var(--muted); font-size: 10px; }
+.diagram .box { fill: var(--paper); stroke: var(--line); stroke-width: 1.2; }
+.diagram .hot { fill: var(--accent-soft); stroke: var(--accent); }
+.diagram .ln { stroke: var(--muted); stroke-width: 1.2; fill: none; }
+.diagram .res { stroke: var(--signal); stroke-width: 1.2; fill: none; stroke-dasharray: 4 3; }
+.diagram .frame { fill: none; stroke: var(--accent); stroke-dasharray: 2 3; }
+.diagram .arrowhead { fill: var(--muted); }
+.diagram .resh { fill: var(--signal); }
+
+/* Lifecycle */
+ol.flow { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: s; }
+ol.flow li { counter-increment: s; display: grid; grid-template-columns: 44px minmax(0,1fr) auto; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line); align-items: baseline; }
+ol.flow li::before { content: counter(s, decimal-leading-zero); font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+ol.flow .what { display: grid; gap: 2px; min-width: 0; }
+ol.flow .what strong { font-family: var(--display); font-weight: 600; font-size: 1.02rem; }
+ol.flow .what span { color: var(--muted); font-size: 0.94rem; }
+ol.flow .bound { font-family: var(--mono); font-size: 0.72rem; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+ol.flow .bound.c { color: var(--l4); border-color: var(--l4); }
+ol.flow .bound.m { color: var(--signal); border-color: var(--signal); }
+@media (max-width: 560px) { ol.flow li { grid-template-columns: 34px minmax(0,1fr); } ol.flow .bound { grid-column: 2; justify-self: start; } }
+
+/* Table */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 0.92rem; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+th { font-family: var(--mono); font-weight: 500; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td:first-child { font-weight: 600; font-family: var(--display); font-size: 1rem; white-space: nowrap; }
+
+footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">Reference · updated daily</span>
+    <h1>AI Architecture Core</h1>
+    <p class="lede">The layers every production AI system is built from, how a request moves through them, and the trade-offs that decide cost, latency and quality. Read top-down for the system view; jump to a layer from the stack.</p>
+  </header>
+
+  <div class="grid">
+    <aside class="rail" aria-label="Architecture stack">
+      <span class="eyebrow">The stack · top to bottom</span>
+      <ul class="stack">
+        <li><a href="#l1"><span class="bar" style="background:var(--l1)"></span><span class="nm">Application &amp; experience</span><span class="lv">L1</span></a></li>
+        <li><a href="#l2"><span class="bar" style="background:var(--l2)"></span><span class="nm">Orchestration &amp; agents</span><span class="lv">L2</span></a></li>
+        <li><a href="#l3"><span class="bar" style="background:var(--l3)"></span><span class="nm">Knowledge &amp; retrieval</span><span class="lv">L3</span></a></li>
+        <li><a href="#l4"><span class="bar" style="background:var(--l4)"></span><span class="nm">Foundation model</span><span class="lv">L4</span></a></li>
+        <li><a href="#l5"><span class="bar" style="background:var(--l5)"></span><span class="nm">Training &amp; adaptation</span><span class="lv">L5</span></a></li>
+        <li><a href="#l6"><span class="bar" style="background:var(--l6)"></span><span class="nm">Inference &amp; serving</span><span class="lv">L6</span></a></li>
+        <li><a href="#l7"><span class="bar" style="background:var(--l7)"></span><span class="nm">Data foundation</span><span class="lv">L7</span></a></li>
+        <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
+      </ul>
+      <div class="cross"><strong>Cross-cutting</strong> — evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+    </aside>
+
+    <main>
+      <!-- DAILY NOTE -->
+      <section id="daily" aria-live="polite">
+        <div class="daily">
+          <div class="daily-head">
+            <h2>Daily note</h2>
+            <span class="status" id="db-status"></span>
+          </div>
+          <div id="latest" class="note">
+            <p class="empty">Each day adds one short note on a core architecture idea. Notes appear here once the first one is posted.</p>
+          </div>
+          <div id="archive-wrap" hidden>
+            <span class="eyebrow">Earlier notes</span>
+            <div id="archive" class="archive"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- L1 -->
+      <section id="l1">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l1)"><i style="background:var(--l1)"></i>Layer 1</span>
+          <h2>Application &amp; experience</h2>
+        </div>
+        <p>Where people meet the system: chat surfaces, copilots inside existing tools, batch jobs, and APIs other services call. This layer owns the contract with the user: what goes in, what comes back, how long they wait, and what happens when the model is wrong.</p>
+        <div class="cols">
+          <div><h4>Components</h4><ul class="plain"><li>Chat UI, embedded copilots, batch pipelines</li><li>API gateway, auth, rate limiting, quotas</li><li>Streaming transport (SSE / WebSocket)</li><li>Feedback capture (thumbs, edits, escalations)</li></ul></div>
+          <div><h4>Design decisions</h4><ul class="plain"><li>Stream tokens or return a complete answer</li><li>Synchronous chat vs async job with a callback</li><li>Human-in-the-loop checkpoints for high-impact actions</li><li>How citations and confidence are shown</li></ul></div>
+        </div>
+      </section>
+
+      <!-- L2 -->
+      <section id="l2">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l2)"><i style="background:var(--l2)"></i>Layer 2</span>
+          <h2>Orchestration &amp; agents</h2>
+        </div>
+        <p>The control logic between the user and the model. It assembles the prompt, decides whether to retrieve, calls tools, loops until a goal is met, and manages what the model remembers. Most product behaviour lives here rather than in the weights.</p>
+        <div class="cols">
+          <div><h4>Components</h4><ul class="plain"><li>Prompt templates and system instructions</li><li>Tool / function calling with JSON schemas</li><li>Planner–executor loops, routers, sub-agents</li><li>Short-term (context) and long-term (store) memory</li><li>Tool protocols such as MCP for connecting systems</li></ul></div>
+          <div><h4>Patterns</h4><ul class="plain"><li><b>Single call</b>: prompt in, answer out</li><li><b>Chain</b>: fixed sequence of calls</li><li><b>Router</b>: classify, then send to a specialist model or prompt</li><li><b>Agent loop</b>: reason → act (tool) → observe → repeat, with a step budget</li></ul></div>
+        </div>
+        <div class="figure">Agent cost ≈ steps × (prompt tokens + output tokens) — context grows each step, so <b>cost rises faster than linearly</b> without summarisation or caching.</div>
+      </section>
+
+      <!-- L3 -->
+      <section id="l3">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l3)"><i style="background:var(--l3)"></i>Layer 3</span>
+          <h2>Knowledge &amp; retrieval</h2>
+        </div>
+        <p>Retrieval-augmented generation (RAG) grounds answers in your own documents without retraining. Quality is decided mostly by chunking and ranking, not by the model.</p>
+        <div class="cols">
+          <div><h4>Ingest path</h4><ul class="plain"><li>Parse (PDF, HTML, tables) and clean</li><li>Chunk: typically 200–800 tokens with overlap, or by document structure</li><li>Embed each chunk into a dense vector</li><li>Index in a vector store (HNSW, IVF-PQ) with metadata filters</li></ul></div>
+          <div><h4>Query path</h4><ul class="plain"><li>Rewrite or expand the query</li><li>Hybrid search: dense vectors + BM25 keywords</li><li>Rerank top-k with a cross-encoder</li><li>Pack the best passages into the prompt with source IDs</li></ul></div>
+        </div>
+        <div class="figure">similarity(q, d) = cos θ = (q · d) / (‖q‖ ‖d‖) &nbsp;·&nbsp; measure with <b>recall@k</b>, MRR, and answer faithfulness</div>
+      </section>
+
+      <!-- L4 -->
+      <section id="l4">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l4)"><i style="background:var(--l4)"></i>Layer 4</span>
+          <h2>Foundation model</h2>
+        </div>
+        <p>Almost every current large language model is a decoder-only transformer: a stack of identical blocks that turns a sequence of tokens into a probability distribution over the next token. Variants change the attention pattern, the feed-forward layer, or add encoders for images and audio.</p>
+        <div class="cols">
+          <div><h4>Building blocks</h4><ul class="plain"><li>Tokenizer (BPE / SentencePiece), vocab ~32k–256k</li><li>Token embeddings + rotary positions (RoPE)</li><li>Self-attention: multi-head, grouped-query (GQA)</li><li>Feed-forward (SwiGLU) or Mixture-of-Experts</li><li>RMSNorm and residual connections</li></ul></div>
+          <div><h4>Variants to know</h4><ul class="plain"><li><b>Dense</b>: every parameter used per token</li><li><b>MoE</b>: router picks top-k experts; large total, small active params</li><li><b>Multimodal</b>: vision/audio encoder projected into token space</li><li><b>Long context</b>: RoPE scaling, sliding-window or sparse attention</li></ul></div>
+        </div>
+      </section>
+
+      <!-- TRANSFORMER BLOCK -->
+      <section id="block">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l4)"><i style="background:var(--l4)"></i>Inside layer 4</span>
+          <h2>One transformer block</h2>
+        </div>
+        <div class="diagram-wrap">
+          <div class="diagram" role="img" aria-label="Decoder block: input, RMSNorm, attention, residual add, RMSNorm, feed-forward, residual add, repeated N times, then LM head and softmax.">
+            <svg viewBox="0 0 320 520" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="arrowhead"/></marker>
+                <marker id="rh" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="resh"/></marker>
+              </defs>
+              <!-- input -->
+              <rect class="box" x="70" y="474" width="180" height="34" rx="4"/>
+              <text x="160" y="495" text-anchor="middle">tokens → embed + RoPE</text>
+              <line class="ln" x1="160" y1="474" x2="160" y2="446" marker-end="url(#ah)"/>
+              <!-- block frame -->
+              <rect class="frame" x="40" y="132" width="240" height="312" rx="6"/>
+              <text class="sub" x="280" y="460" text-anchor="end">block × N layers</text>
+              <!-- norm1 -->
+              <rect class="box" x="90" y="404" width="140" height="28" rx="4"/>
+              <text x="160" y="422" text-anchor="middle">RMSNorm</text>
+              <line class="ln" x1="160" y1="404" x2="160" y2="384" marker-end="url(#ah)"/>
+              <!-- attention -->
+              <rect class="box hot" x="70" y="338" width="180" height="44" rx="4"/>
+              <text x="160" y="357" text-anchor="middle">Self-attention</text>
+              <text class="sub" x="160" y="372" text-anchor="middle">causal · GQA · KV cache</text>
+              <line class="ln" x1="160" y1="338" x2="160" y2="314" marker-end="url(#ah)"/>
+              <!-- add1 -->
+              <circle class="box" cx="160" cy="302" r="11"/>
+              <text x="160" y="306" text-anchor="middle">+</text>
+              <!-- residual 1 -->
+              <path class="res" d="M160 448 L60 448 L60 302 L147 302" marker-end="url(#rh)"/>
+              <line class="ln" x1="160" y1="291" x2="160" y2="272" marker-end="url(#ah)"/>
+              <!-- norm2 -->
+              <rect class="box" x="90" y="242" width="140" height="28" rx="4"/>
+              <text x="160" y="260" text-anchor="middle">RMSNorm</text>
+              <line class="ln" x1="160" y1="242" x2="160" y2="222" marker-end="url(#ah)"/>
+              <!-- ffn -->
+              <rect class="box hot" x="70" y="176" width="180" height="44" rx="4"/>
+              <text x="160" y="195" text-anchor="middle">Feed-forward</text>
+              <text class="sub" x="160" y="210" text-anchor="middle">SwiGLU · or MoE experts</text>
+              <line class="ln" x1="160" y1="176" x2="160" y2="160" marker-end="url(#ah)"/>
+              <!-- add2 -->
+              <circle class="box" cx="160" cy="148" r="11"/>
+              <text x="160" y="152" text-anchor="middle">+</text>
+              <path class="res" d="M160 290 L160 286 L264 286 L264 148 L173 148" marker-end="url(#rh)"/>
+              <line class="ln" x1="160" y1="137" x2="160" y2="104" marker-end="url(#ah)"/>
+              <!-- head -->
+              <rect class="box" x="70" y="62" width="180" height="40" rx="4"/>
+              <text x="160" y="80" text-anchor="middle">RMSNorm → LM head</text>
+              <text class="sub" x="160" y="94" text-anchor="middle">d_model → vocab logits</text>
+              <line class="ln" x1="160" y1="62" x2="160" y2="44" marker-end="url(#ah)"/>
+              <rect class="box" x="70" y="12" width="180" height="30" rx="4"/>
+              <text x="160" y="31" text-anchor="middle">softmax → sample next token</text>
+            </svg>
+          </div>
+          <div style="display:grid; gap:14px; min-width:0">
+            <p>Each block reads the running representation (the <em>residual stream</em>), lets every token look back at earlier tokens through attention, then transforms each position independently with the feed-forward layer. Residual connections (dashed) add each sub-layer's output back to its input, which is what lets very deep stacks train.</p>
+            <div class="figure">Attention(Q, K, V) = softmax( Q·Kᵀ / √d<sub>k</sub> + mask ) · V</div>
+            <ul class="plain">
+              <li><b>Attention</b> mixes information across positions; cost grows with sequence length squared in prefill.</li>
+              <li><b>Feed-forward</b> holds most parameters (about two-thirds in a dense model) and much of the stored knowledge.</li>
+              <li><b>GQA</b> shares key/value heads across query heads to shrink the KV cache.</li>
+              <li><b>MoE</b> swaps the single feed-forward for many experts; only top-k run per token.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- L5 -->
+      <section id="l5">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l5)"><i style="background:var(--l5)"></i>Layer 5</span>
+          <h2>Training &amp; adaptation</h2>
+        </div>
+        <p>A model passes through stages, each with different data and objectives. For most enterprise work the choice is not whether to pretrain but which adaptation to apply on top of an existing model.</p>
+        <div class="cols">
+          <div><h4>Stages</h4><ul class="plain"><li><b>Pretraining</b>: next-token prediction on trillions of tokens</li><li><b>Supervised fine-tuning</b>: instruction–response pairs</li><li><b>Preference tuning</b>: RLHF (reward model + PPO) or DPO</li><li><b>Distillation</b>: a small model learns from a larger one</li></ul></div>
+          <div><h4>Adaptation ladder (cheapest first)</h4><ul class="plain"><li>Prompting and few-shot examples</li><li>RAG for knowledge that changes</li><li>Parameter-efficient tuning: LoRA / QLoRA adapters</li><li>Full fine-tune for behaviour and format at scale</li></ul></div>
+        </div>
+        <div class="figure">Training compute ≈ <b>6 · N · D</b> FLOPs (N params, D tokens) &nbsp;·&nbsp; compute-optimal ≈ <b>20 tokens per parameter</b> (Chinchilla)</div>
+      </section>
+
+      <!-- L6 -->
+      <section id="l6">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l6)"><i style="background:var(--l6)"></i>Layer 6</span>
+          <h2>Inference &amp; serving</h2>
+        </div>
+        <p>Serving splits into two phases with different bottlenecks. <b>Prefill</b> processes the whole prompt in parallel and is compute-bound; it sets time-to-first-token. <b>Decode</b> produces one token at a time, rereads all weights and the KV cache each step, and is memory-bandwidth-bound; it sets time-per-output-token.</p>
+        <div class="cols">
+          <div><h4>Techniques</h4><ul class="plain"><li>KV cache, with paged allocation (PagedAttention)</li><li>Continuous (in-flight) batching</li><li>Quantization: FP8, INT8, INT4 weights</li><li>Speculative decoding with a draft model</li><li>Prefix / prompt caching for shared system prompts</li></ul></div>
+          <div><h4>Metrics</h4><ul class="plain"><li><b>TTFT</b>: time to first token (ms)</li><li><b>TPOT</b>: time per output token (ms)</li><li><b>Throughput</b>: tokens/s per GPU</li><li><b>Goodput</b>: requests/s that meet the latency SLO</li><li>Cost per 1M input / output tokens</li></ul></div>
+        </div>
+        <div class="figure">
+          Weights memory = params × bytes &nbsp;→&nbsp; 70B × 2 B (FP16) = <b>140 GB</b>; at INT4 ≈ <b>35 GB</b><br>
+          KV cache per token = 2 × layers × kv_heads × head_dim × bytes<br>
+          &nbsp;&nbsp;e.g. 2 × 32 × 8 × 128 × 2 B = <b>128 KiB/token</b> → 8,192-token context ≈ <b>1 GiB per sequence</b><br>
+          Inference compute ≈ <b>2 · N</b> FLOPs per generated token
+        </div>
+      </section>
+
+      <!-- L7 -->
+      <section id="l7">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l7)"><i style="background:var(--l7)"></i>Layer 7</span>
+          <h2>Data foundation</h2>
+        </div>
+        <p>Every layer above depends on data that is clean, permissioned and traceable. The same pipelines feed pretraining corpora, fine-tuning sets, retrieval indexes and evaluation sets.</p>
+        <div class="cols">
+          <div><h4>Components</h4><ul class="plain"><li>Ingestion from lakes, warehouses, SaaS sources</li><li>Deduplication (exact + MinHash near-dup)</li><li>Quality and toxicity filtering, PII redaction</li><li>Labelling and synthetic data generation</li></ul></div>
+          <div><h4>Controls</h4><ul class="plain"><li>Lineage: which data trained or grounded which output</li><li>Access control carried into the retrieval index</li><li>Versioned datasets and eval sets</li><li>Retention and consent rules</li></ul></div>
+        </div>
+      </section>
+
+      <!-- L8 -->
+      <section id="l8">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l8)"><i style="background:var(--l8)"></i>Layer 8</span>
+          <h2>Compute &amp; infrastructure</h2>
+        </div>
+        <p>Accelerators, memory and the network between them. For large models, memory capacity and bandwidth matter as much as raw FLOPs, and the interconnect decides how well work splits across devices.</p>
+        <div class="cols">
+          <div><h4>Hardware</h4><ul class="plain"><li>GPUs / TPUs / custom accelerators</li><li>HBM capacity and bandwidth per device</li><li>Intra-node links (NVLink) and inter-node fabric (InfiniBand, RoCE)</li><li>Managed platforms: Azure AI Foundry, Amazon Bedrock / SageMaker, Vertex AI</li></ul></div>
+          <div><h4>Parallelism</h4><ul class="plain"><li><b>Data</b>: copies of the model, split the batch</li><li><b>Tensor</b>: split each matrix across devices</li><li><b>Pipeline</b>: split layers into stages</li><li><b>Expert</b>: spread MoE experts across devices</li><li>Sharded optimizers (ZeRO / FSDP)</li></ul></div>
+        </div>
+      </section>
+
+      <!-- CROSS-CUTTING -->
+      <section id="cross">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--muted)"><i style="background:var(--muted)"></i>Across all layers</span>
+          <h2>Cross-cutting concerns</h2>
+        </div>
+        <div class="cols">
+          <div><h4>Evaluation</h4><ul class="plain"><li>Offline golden sets per use case</li><li>LLM-as-judge with human calibration</li><li>RAG: retrieval recall, faithfulness, answer relevance</li><li>Online A/B tests and regression gates in CI</li></ul></div>
+          <div><h4>Safety &amp; guardrails</h4><ul class="plain"><li>Input checks: prompt injection, PII, policy</li><li>Output checks: grounding, toxicity, data leakage</li><li>Tool permissions and least privilege for agents</li><li>Red-teaming before each release</li></ul></div>
+          <div><h4>Observability</h4><ul class="plain"><li>Traces per request across retrieval, tools, model</li><li>Token usage and cost attribution</li><li>Latency (TTFT, TPOT) and error rates</li><li>Drift in inputs and quality scores</li></ul></div>
+          <div><h4>Governance</h4><ul class="plain"><li>Model and prompt registry with versions</li><li>Risk tiering and approvals per use case</li><li>Audit logs and explainability records</li><li>Regulatory mapping (e.g. EU AI Act, NIST AI RMF)</li></ul></div>
+        </div>
+      </section>
+
+      <!-- LIFECYCLE -->
+      <section id="flow">
+        <div class="sec-head">
+          <span class="eyebrow">How the layers connect</span>
+          <h2>Lifecycle of one request</h2>
+        </div>
+        <ol class="flow">
+          <li><div class="what"><strong>Receive and authenticate</strong><span>Gateway checks identity, quota and tenant (L1).</span></div><span class="bound">I/O</span></li>
+          <li><div class="what"><strong>Input guardrails</strong><span>Screen for prompt injection, PII and policy violations.</span></div><span class="bound">I/O</span></li>
+          <li><div class="what"><strong>Plan and retrieve</strong><span>Orchestrator decides on retrieval; hybrid search + rerank return passages (L2, L3).</span></div><span class="bound">I/O</span></li>
+          <li><div class="what"><strong>Assemble the prompt</strong><span>System instructions, tools, retrieved context, history; cached prefix reused.</span></div><span class="bound">I/O</span></li>
+          <li><div class="what"><strong>Prefill</strong><span>All prompt tokens processed in parallel; KV cache written. Sets TTFT (L6).</span></div><span class="bound c">compute-bound</span></li>
+          <li><div class="what"><strong>Decode</strong><span>One token per step, streamed to the client. Sets TPOT (L6).</span></div><span class="bound m">memory-bound</span></li>
+          <li><div class="what"><strong>Tool calls (if any)</strong><span>Model emits a call, orchestrator runs it, result is appended, decode resumes.</span></div><span class="bound">loop</span></li>
+          <li><div class="what"><strong>Output guardrails</strong><span>Check grounding, leakage and policy before release.</span></div><span class="bound">I/O</span></li>
+          <li><div class="what"><strong>Log, trace and evaluate</strong><span>Trace, token counts, cost and feedback flow to observability and eval sets.</span></div><span class="bound">async</span></li>
+        </ol>
+      </section>
+
+      <!-- TRADE-OFFS -->
+      <section id="tradeoffs">
+        <div class="sec-head">
+          <span class="eyebrow">Decisions architects make</span>
+          <h2>Key trade-offs</h2>
+        </div>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>Decision</th><th>Options</th><th>Choose based on</th></tr></thead>
+            <tbody>
+              <tr><td>Knowledge</td><td>RAG vs fine-tuning</td><td>RAG for facts that change or need citations; fine-tuning for style, format and narrow skills.</td></tr>
+              <tr><td>Model size</td><td>Frontier vs small / distilled</td><td>Task difficulty, latency SLO and cost per request. Route easy traffic to small models.</td></tr>
+              <tr><td>Hosting</td><td>Managed API vs self-hosted open weights</td><td>Data residency, volume (self-hosting pays off at high steady load), team capacity.</td></tr>
+              <tr><td>Precision</td><td>FP16 vs FP8 / INT8 / INT4</td><td>Memory and speed gains against measured quality loss on your eval set.</td></tr>
+              <tr><td>Control flow</td><td>Fixed chain vs autonomous agent</td><td>Predictability and auditability vs flexibility. Start with chains, add agency where it earns its cost.</td></tr>
+              <tr><td>Context</td><td>Long context vs retrieval</td><td>Long context is simpler but costs more per call and can dilute attention; retrieval scales to large corpora.</td></tr>
+              <tr><td>Batching</td><td>Latency vs throughput</td><td>Bigger batches raise tokens/s per GPU but increase per-request latency.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer>AI Architecture Core · a living reference with one new note each day</footer>
+</div>
+<script>
+/* Daily notes: add a new object at the TOP of this list each day. Newest first. */
+const NOTES = [
+  {
+    date: "2026-10-02",
+    title: "Why the KV cache decides serving cost",
+    layer: "L6 Serving",
+    body: [
+      "During decode, a model generates one token per step. To avoid recomputing attention over the whole prompt each time, it stores the key and value vectors of every earlier token: the KV cache. That turns each step from quadratic work into a lookup plus one new row.",
+      "The catch is memory. Per token the cache holds 2 × layers × kv_heads × head_dim × bytes. A 32-layer model with 8 KV heads of dimension 128 in FP16 needs about 128 KiB per token, so one 8k-token conversation holds roughly 1 GiB. Multiply by the number of concurrent users and the cache, not the weights, often sets how many requests a GPU can serve at once.",
+      "That is why serving stacks invest in grouped-query attention (fewer KV heads), paged KV allocation to avoid fragmentation, FP8 KV quantization, and prefix caching so a shared system prompt is stored once."
+    ],
+    takeaway: "When sizing an LLM deployment, budget GPU memory for the KV cache at your target concurrency and context length, not just for the model weights."
+  }
+];
+
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const fmtDate = (iso) => { const d = new Date(iso + "T00:00:00"); return isNaN(d) ? iso : d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" }); };
+  function buildNote(d, withTitle) {
+    const wrap = el("div", "note");
+    const meta = el("div", "meta");
+    meta.appendChild(el("span", null, fmtDate(d.date)));
+    if (d.layer) meta.appendChild(el("span", "chip", d.layer));
+    wrap.appendChild(meta);
+    if (withTitle) wrap.appendChild(el("h3", null, d.title));
+    const body = el("div", "body");
+    (d.body || []).forEach((p) => body.appendChild(el("p", null, p)));
+    wrap.appendChild(body);
+    if (d.takeaway) { const t = el("p", "take"); t.appendChild(el("strong", null, "Takeaway: ")); t.appendChild(document.createTextNode(d.takeaway)); wrap.appendChild(t); }
+    return wrap;
+  }
+  const notes = NOTES.slice().sort((a, b) => b.date.localeCompare(a.date));
+  $("db-status").textContent = notes.length + (notes.length === 1 ? " note" : " notes");
+  if (!notes.length) return;
+  const fresh = buildNote(notes[0], true); fresh.id = "latest"; $("latest").replaceWith(fresh);
+  const rest = notes.slice(1);
+  rest.forEach((d) => {
+    const det = el("details"); const sum = el("summary");
+    sum.appendChild(el("span", "d", d.date)); sum.appendChild(el("span", null, d.title));
+    det.appendChild(sum); det.appendChild(buildNote(d, false)); $("archive").appendChild(det);
+  });
+  $("archive-wrap").hidden = rest.length === 0;
+})();
+</script>
+
+
+
+</body>
+</html>
