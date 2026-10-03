@@ -155,6 +155,42 @@ td:first-child { font-weight: 600; font-family: var(--display); font-size: 1rem;
 footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+/* KV cache section */
+.kv-panel { background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.kv-panel h3 { font-size: 1.15rem; }
+.kv-panel .cap { color: var(--muted); font-size: 0.92rem; }
+.kv-svg { overflow-x: auto; }
+.kv-svg svg { display: block; width: 100%; min-width: 520px; max-width: 680px; height: auto; }
+.kv-svg text { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.kv-svg .ttl { font-family: var(--display); font-size: 15px; font-weight: 600; fill: var(--ink); }
+.kv-svg .tot { fill: var(--ink); font-size: 12px; }
+.kv-svg .c-new { fill: var(--signal); }
+.kv-svg .c-cache { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; }
+.kv-svg .c-empty { fill: none; stroke: var(--line); stroke-dasharray: 3 3; }
+.kv-eq { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.kv-tile { display: grid; gap: 2px; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; min-width: 84px; }
+.kv-tile .n { font-family: var(--mono); font-size: 1.35rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink); line-height: 1.2; }
+.kv-tile .u { font-size: 0.78rem; color: var(--muted); line-height: 1.3; }
+.kv-tile.res { border-color: var(--l6); border-width: 2px; }
+.kv-op { font-family: var(--mono); font-size: 1.1rem; color: var(--muted); }
+.kv-gpu { display: flex; gap: 2px; height: 30px; }
+.kv-gpu span { display: block; height: 100%; }
+.kv-gpu .w { background: var(--muted); border-radius: 4px 0 0 4px; flex: 16; }
+.kv-gpu .k { background: var(--l6); border-radius: 0 4px 4px 0; flex: 64; }
+.kv-gpu-l { display: flex; gap: 2px; font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+.kv-gpu-l span:first-child { flex: 16; min-width: 0; }
+.kv-gpu-l span:last-child { flex: 64; min-width: 0; }
+.kv-bars { display: grid; gap: 10px; }
+.kv-row { display: grid; grid-template-columns: 200px minmax(0, 1fr) 84px; gap: 12px; align-items: center; }
+.kv-row .lab { font-size: 0.9rem; line-height: 1.3; }
+.kv-row .lab small { display: block; font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+.kv-track { height: 16px; position: relative; }
+.kv-bar { height: 100%; background: var(--l6); border-radius: 0 4px 4px 0; min-width: 4px; }
+.kv-row .val { font-family: var(--mono); font-size: 0.9rem; font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
+.kv-row:hover .kv-bar { filter: brightness(1.12); }
+@media (max-width: 560px) { .kv-row { grid-template-columns: minmax(0, 1fr) 70px; } .kv-row .kv-track { grid-column: 1 / -1; grid-row: 2; } }
+.kv-note { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -180,7 +216,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -348,7 +384,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         </div>
         <p>Serving splits into two phases with different bottlenecks. <b>Prefill</b> processes the whole prompt in parallel and is compute-bound; it sets time-to-first-token. <b>Decode</b> produces one token at a time, rereads all weights and the KV cache each step, and is memory-bandwidth-bound; it sets time-per-output-token.</p>
         <div class="cols">
-          <div><h4>Techniques</h4><ul class="plain"><li>KV cache, with paged allocation (PagedAttention)</li><li>Continuous (in-flight) batching</li><li>Quantization: FP8, INT8, INT4 weights</li><li>Speculative decoding with a draft model</li><li>Prefix / prompt caching for shared system prompts</li></ul></div>
+          <div><h4>Techniques</h4><ul class="plain"><li><a href="#kv">KV cache</a>, with paged allocation (PagedAttention)</li><li>Continuous (in-flight) batching</li><li>Quantization: FP8, INT8, INT4 weights</li><li>Speculative decoding with a draft model</li><li>Prefix / prompt caching for shared system prompts</li></ul></div>
           <div><h4>Metrics</h4><ul class="plain"><li><b>TTFT</b>: time to first token (ms)</li><li><b>TPOT</b>: time per output token (ms)</li><li><b>Throughput</b>: tokens/s per GPU</li><li><b>Goodput</b>: requests/s that meet the latency SLO</li><li>Cost per 1M input / output tokens</li></ul></div>
         </div>
         <div class="figure">
@@ -357,6 +393,143 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
           &nbsp;&nbsp;e.g. 2 × 32 × 8 × 128 × 2 B = <b>128 KiB/token</b> → 8,192-token context ≈ <b>1 GiB per sequence</b><br>
           Inference compute ≈ <b>2 · N</b> FLOPs per generated token
         </div>
+      </section>
+
+      <!-- KV CACHE -->
+      <section id="kv">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l6)"><i style="background:var(--l6)"></i>Inside layer 6</span>
+          <h2>The KV cache, explained</h2>
+        </div>
+        <p>A language model writes one token at a time. To pick each new token, attention compares it with every earlier token using their <b>keys</b> (what each token offers to be matched on) and <b>values</b> (what it contributes once matched). Those keys and values never change once computed, so serving engines keep them in GPU memory instead of recomputing them. That store is the KV cache. It makes generation fast, and it is usually what limits how many people one GPU can serve.</p>
+
+        <div class="kv-panel">
+          <h3>1 · What the cache saves</h3>
+          <div class="kv-svg"><svg viewBox="0 0 640 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two grids of five decode steps. Without a cache, step n recomputes keys and values for all n tokens, 15 computations in total. With a cache, each step computes only the newest token and reads the rest, 5 computations in total.">
+<text class="ttl" x="20" y="22">Without a cache</text>
+<text x="96" y="46" text-anchor="middle">t1</text>
+<text x="140" y="46" text-anchor="middle">t2</text>
+<text x="184" y="46" text-anchor="middle">t3</text>
+<text x="228" y="46" text-anchor="middle">t4</text>
+<text x="272" y="46" text-anchor="middle">t5</text>
+<text x="20" y="72">step 1</text>
+<rect class="c-new" x="76" y="56" width="40" height="24" rx="3"><title>Step 1, token 1: K and V computed this step</title></rect>
+<rect class="c-empty" x="120" y="56" width="40" height="24" rx="3"><title>Step 1, token 2: not generated yet</title></rect>
+<rect class="c-empty" x="164" y="56" width="40" height="24" rx="3"><title>Step 1, token 3: not generated yet</title></rect>
+<rect class="c-empty" x="208" y="56" width="40" height="24" rx="3"><title>Step 1, token 4: not generated yet</title></rect>
+<rect class="c-empty" x="252" y="56" width="40" height="24" rx="3"><title>Step 1, token 5: not generated yet</title></rect>
+<text x="20" y="100">step 2</text>
+<rect class="c-new" x="76" y="84" width="40" height="24" rx="3"><title>Step 2, token 1: K and V computed this step</title></rect>
+<rect class="c-new" x="120" y="84" width="40" height="24" rx="3"><title>Step 2, token 2: K and V computed this step</title></rect>
+<rect class="c-empty" x="164" y="84" width="40" height="24" rx="3"><title>Step 2, token 3: not generated yet</title></rect>
+<rect class="c-empty" x="208" y="84" width="40" height="24" rx="3"><title>Step 2, token 4: not generated yet</title></rect>
+<rect class="c-empty" x="252" y="84" width="40" height="24" rx="3"><title>Step 2, token 5: not generated yet</title></rect>
+<text x="20" y="128">step 3</text>
+<rect class="c-new" x="76" y="112" width="40" height="24" rx="3"><title>Step 3, token 1: K and V computed this step</title></rect>
+<rect class="c-new" x="120" y="112" width="40" height="24" rx="3"><title>Step 3, token 2: K and V computed this step</title></rect>
+<rect class="c-new" x="164" y="112" width="40" height="24" rx="3"><title>Step 3, token 3: K and V computed this step</title></rect>
+<rect class="c-empty" x="208" y="112" width="40" height="24" rx="3"><title>Step 3, token 4: not generated yet</title></rect>
+<rect class="c-empty" x="252" y="112" width="40" height="24" rx="3"><title>Step 3, token 5: not generated yet</title></rect>
+<text x="20" y="156">step 4</text>
+<rect class="c-new" x="76" y="140" width="40" height="24" rx="3"><title>Step 4, token 1: K and V computed this step</title></rect>
+<rect class="c-new" x="120" y="140" width="40" height="24" rx="3"><title>Step 4, token 2: K and V computed this step</title></rect>
+<rect class="c-new" x="164" y="140" width="40" height="24" rx="3"><title>Step 4, token 3: K and V computed this step</title></rect>
+<rect class="c-new" x="208" y="140" width="40" height="24" rx="3"><title>Step 4, token 4: K and V computed this step</title></rect>
+<rect class="c-empty" x="252" y="140" width="40" height="24" rx="3"><title>Step 4, token 5: not generated yet</title></rect>
+<text x="20" y="184">step 5</text>
+<rect class="c-new" x="76" y="168" width="40" height="24" rx="3"><title>Step 5, token 1: K and V computed this step</title></rect>
+<rect class="c-new" x="120" y="168" width="40" height="24" rx="3"><title>Step 5, token 2: K and V computed this step</title></rect>
+<rect class="c-new" x="164" y="168" width="40" height="24" rx="3"><title>Step 5, token 3: K and V computed this step</title></rect>
+<rect class="c-new" x="208" y="168" width="40" height="24" rx="3"><title>Step 5, token 4: K and V computed this step</title></rect>
+<rect class="c-new" x="252" y="168" width="40" height="24" rx="3"><title>Step 5, token 5: K and V computed this step</title></rect>
+<text class="tot" x="20" y="212">15 K/V computations</text>
+<text class="ttl" x="340" y="22">With a KV cache</text>
+<text x="416" y="46" text-anchor="middle">t1</text>
+<text x="460" y="46" text-anchor="middle">t2</text>
+<text x="504" y="46" text-anchor="middle">t3</text>
+<text x="548" y="46" text-anchor="middle">t4</text>
+<text x="592" y="46" text-anchor="middle">t5</text>
+<text x="340" y="72">step 1</text>
+<rect class="c-new" x="396" y="56" width="40" height="24" rx="3"><title>Step 1, token 1: K and V computed this step</title></rect>
+<rect class="c-empty" x="440" y="56" width="40" height="24" rx="3"><title>Step 1, token 2: not generated yet</title></rect>
+<rect class="c-empty" x="484" y="56" width="40" height="24" rx="3"><title>Step 1, token 3: not generated yet</title></rect>
+<rect class="c-empty" x="528" y="56" width="40" height="24" rx="3"><title>Step 1, token 4: not generated yet</title></rect>
+<rect class="c-empty" x="572" y="56" width="40" height="24" rx="3"><title>Step 1, token 5: not generated yet</title></rect>
+<text x="340" y="100">step 2</text>
+<rect class="c-cache" x="396" y="84" width="40" height="24" rx="3"><title>Step 2, token 1: K and V read from cache</title></rect>
+<rect class="c-new" x="440" y="84" width="40" height="24" rx="3"><title>Step 2, token 2: K and V computed this step</title></rect>
+<rect class="c-empty" x="484" y="84" width="40" height="24" rx="3"><title>Step 2, token 3: not generated yet</title></rect>
+<rect class="c-empty" x="528" y="84" width="40" height="24" rx="3"><title>Step 2, token 4: not generated yet</title></rect>
+<rect class="c-empty" x="572" y="84" width="40" height="24" rx="3"><title>Step 2, token 5: not generated yet</title></rect>
+<text x="340" y="128">step 3</text>
+<rect class="c-cache" x="396" y="112" width="40" height="24" rx="3"><title>Step 3, token 1: K and V read from cache</title></rect>
+<rect class="c-cache" x="440" y="112" width="40" height="24" rx="3"><title>Step 3, token 2: K and V read from cache</title></rect>
+<rect class="c-new" x="484" y="112" width="40" height="24" rx="3"><title>Step 3, token 3: K and V computed this step</title></rect>
+<rect class="c-empty" x="528" y="112" width="40" height="24" rx="3"><title>Step 3, token 4: not generated yet</title></rect>
+<rect class="c-empty" x="572" y="112" width="40" height="24" rx="3"><title>Step 3, token 5: not generated yet</title></rect>
+<text x="340" y="156">step 4</text>
+<rect class="c-cache" x="396" y="140" width="40" height="24" rx="3"><title>Step 4, token 1: K and V read from cache</title></rect>
+<rect class="c-cache" x="440" y="140" width="40" height="24" rx="3"><title>Step 4, token 2: K and V read from cache</title></rect>
+<rect class="c-cache" x="484" y="140" width="40" height="24" rx="3"><title>Step 4, token 3: K and V read from cache</title></rect>
+<rect class="c-new" x="528" y="140" width="40" height="24" rx="3"><title>Step 4, token 4: K and V computed this step</title></rect>
+<rect class="c-empty" x="572" y="140" width="40" height="24" rx="3"><title>Step 4, token 5: not generated yet</title></rect>
+<text x="340" y="184">step 5</text>
+<rect class="c-cache" x="396" y="168" width="40" height="24" rx="3"><title>Step 5, token 1: K and V read from cache</title></rect>
+<rect class="c-cache" x="440" y="168" width="40" height="24" rx="3"><title>Step 5, token 2: K and V read from cache</title></rect>
+<rect class="c-cache" x="484" y="168" width="40" height="24" rx="3"><title>Step 5, token 3: K and V read from cache</title></rect>
+<rect class="c-cache" x="528" y="168" width="40" height="24" rx="3"><title>Step 5, token 4: K and V read from cache</title></rect>
+<rect class="c-new" x="572" y="168" width="40" height="24" rx="3"><title>Step 5, token 5: K and V computed this step</title></rect>
+<text class="tot" x="340" y="212">5 K/V computations + 10 reads</text>
+<rect class="c-new" x="20" y="232" width="16" height="12" rx="2"/><text x="42" y="242">computed this step</text>
+<rect class="c-cache" x="190" y="232" width="16" height="12" rx="2"/><text x="212" y="242">read from cache</text>
+<rect class="c-empty" x="340" y="232" width="16" height="12" rx="2"/><text x="362" y="242">not generated yet</text>
+</svg></div>
+          <p class="cap">To produce token 5, the model needs keys and values for tokens 1 to 5. Without a cache it recomputes all of them at every step. With a cache it computes only the newest one and reads the rest. Over a 1,000-token answer that is 500,500 key/value computations per layer without a cache, against 1,000 with one.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · What one token costs in memory</h3>
+          <div class="kv-eq" aria-label="2 times 32 layers times 8 KV heads times 128 head dimension times 2 bytes equals 128 KiB per token">
+            <div class="kv-tile"><span class="n">2</span><span class="u">K and V</span></div><span class="kv-op">×</span>
+            <div class="kv-tile"><span class="n">32</span><span class="u">layers</span></div><span class="kv-op">×</span>
+            <div class="kv-tile"><span class="n">8</span><span class="u">KV heads</span></div><span class="kv-op">×</span>
+            <div class="kv-tile"><span class="n">128</span><span class="u">head dim</span></div><span class="kv-op">×</span>
+            <div class="kv-tile"><span class="n">2 B</span><span class="u">FP16</span></div><span class="kv-op">=</span>
+            <div class="kv-tile res"><span class="n">128 KiB</span><span class="u">per token</span></div>
+          </div>
+          <p class="cap">Every token in every active conversation holds this much, in every layer, for as long as the conversation is live. The shape shown is typical of an 8B-parameter model.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · How many conversations fit on one 80 GB GPU</h3>
+          <div style="display:grid; gap:6px">
+            <div class="kv-gpu" role="img" aria-label="80 GB GPU: 16 GB for model weights, 64 GB left for the KV cache"><span class="w" title="Model weights: 8B parameters × 2 bytes = 16 GB"></span><span class="k" title="Left for the KV cache: 64 GB ≈ 59.6 GiB"></span></div>
+            <div class="kv-gpu-l"><span>weights 16 GB</span><span>KV cache budget 64 GB (≈ 59.6 GiB)</span></div>
+          </div>
+          <div class="kv-bars" role="list" aria-label="Concurrent conversations by context length">
+<div class="kv-row" title="2,048 tokens × 128 KiB = 0.25 GiB each; 59.6 GiB free ÷ 0.25 = 238 conversations"><div class="lab">2K context<small>0.25 GiB per conversation</small></div><div class="kv-track"><div class="kv-bar" style="width:100%"></div></div><div class="val">238</div></div>
+<div class="kv-row" title="8,192 tokens × 128 KiB = 1 GiB each; 59.6 GiB free ÷ 1 = 59 conversations"><div class="lab">8K context<small>1 GiB per conversation</small></div><div class="kv-track"><div class="kv-bar" style="width:24.8%"></div></div><div class="val">59</div></div>
+<div class="kv-row" title="32,768 tokens × 128 KiB = 4 GiB each; 59.6 GiB free ÷ 4 = 14 conversations"><div class="lab">32K context<small>4 GiB per conversation</small></div><div class="kv-track"><div class="kv-bar" style="width:5.9%"></div></div><div class="val">14</div></div>
+<div class="kv-row" title="131,072 tokens × 128 KiB = 16 GiB each; 59.6 GiB free ÷ 16 = 3 conversations"><div class="lab">128K context<small>16 GiB per conversation</small></div><div class="kv-track"><div class="kv-bar" style="width:1.3%"></div></div><div class="val">3</div></div>
+          </div>
+          <p class="cap">Same GPU, same model. Only the context length changes, and capacity falls from 238 conversations to 3. Long context is a memory decision before it is a model decision.</p>
+          <span class="kv-note">Assumes an 8B model in FP16 (32 layers, 8 KV heads, head dim 128) and every conversation at full length. Ignores activations and runtime overhead, so real capacity is somewhat lower.</span>
+        </div>
+
+        <div class="kv-panel">
+          <h3>4 · How architects shrink it</h3>
+          <div class="kv-bars" role="list" aria-label="KV cache size per token by technique">
+<div class="kv-row" title="2 × 32 layers × 32 KV heads × 128 × 2 bytes = 512 KiB per token"><div class="lab">Multi-head attention<small>32 KV heads · FP16</small></div><div class="kv-track"><div class="kv-bar" style="width:100%"></div></div><div class="val">512 KiB</div></div>
+<div class="kv-row" title="2 × 32 × 8 × 128 × 2 bytes = 128 KiB per token (4× smaller)"><div class="lab">Grouped-query attention<small>8 KV heads · FP16</small></div><div class="kv-track"><div class="kv-bar" style="width:25%"></div></div><div class="val">128 KiB</div></div>
+<div class="kv-row" title="2 × 32 × 8 × 128 × 1 byte = 64 KiB per token (8× smaller)"><div class="lab">GQA + FP8 cache<small>8 KV heads · 1 byte</small></div><div class="kv-track"><div class="kv-bar" style="width:12.5%"></div></div><div class="val">64 KiB</div></div>
+          </div>
+          <div class="cols">
+            <div><h4>Make each token smaller</h4><ul class="plain"><li><b>Grouped-query attention</b>: several query heads share one KV head</li><li><b>FP8 / INT8 KV cache</b>: halve the bytes per value</li><li><b>Latent attention (MLA)</b>: store a compressed latent and expand on use</li></ul></div>
+            <div><h4>Store fewer tokens, waste less</h4><ul class="plain"><li><b>PagedAttention</b>: allocate in small blocks, so little memory sits reserved but unused</li><li><b>Prefix caching</b>: a shared system prompt is stored once for all users</li><li><b>Sliding-window attention</b>: keep only the most recent N tokens in some layers</li><li><b>Offload</b>: move idle conversations to CPU memory or SSD</li></ul></div>
+          </div>
+        </div>
+
+        <div class="figure">GPU memory needed ≈ weights + (concurrent users × context tokens × <b>KV bytes per token</b>) + headroom for activations and runtime</div>
       </section>
 
       <!-- L7 -->
@@ -447,6 +620,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-10-03",
+    title: "RAG or fine-tuning? Start with what needs to change",
+    layer: "L3 Retrieval",
+    body: [
+      "This question is usually asked as if the two compete. They don't. They change different things. RAG changes what the model knows at the moment it answers: it fetches relevant passages and places them in the prompt. Fine-tuning changes how the model behaves: its weights shift toward a format, a vocabulary, or a narrow skill.",
+      "A simple decision rule follows. Choose RAG when the knowledge changes faster than you could retrain (policies, product catalogues, tickets), when answers need citations, or when users may only see documents they have access to. Updating it means re-indexing a document, not running a training job. Choose fine-tuning when the model knows enough but won't reliably follow your output format, uses the wrong domain terms, or needs a skill that prompting can't draw out. A LoRA adapter trained on a few thousand high-quality examples is often enough.",
+      "Cost works differently too. RAG adds tokens to every call: five passages of 400 tokens is 2,000 extra input tokens per request, a recurring cost that grows with traffic. Fine-tuning is mostly an upfront cost plus hosting a custom model. Many production systems combine the two, using a small fine-tuned model that is good at reading retrieved context. And before either, try a better prompt. It fixes more problems than people expect."
+    ],
+    takeaway: "Use RAG to change what the model knows and fine-tuning to change how it behaves, then compare both against the same evaluation set before committing."
+  },
   {
     date: "2026-10-02",
     title: "Why the KV cache decides serving cost",
