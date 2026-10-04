@@ -191,6 +191,19 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 .kv-row:hover .kv-bar { filter: brightness(1.12); }
 @media (max-width: 560px) { .kv-row { grid-template-columns: minmax(0, 1fr) 70px; } .kv-row .kv-track { grid-column: 1 / -1; grid-row: 2; } }
 .kv-note { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+
+/* Identity & policy section */
+.id-scope { display: grid; gap: 8px; }
+.id-step { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; align-items: center; }
+.id-step .who { font-family: var(--display); font-weight: 600; font-size: 0.98rem; line-height: 1.2; }
+.id-step .who small { display: block; font-family: var(--mono); font-weight: 400; font-size: 0.72rem; color: var(--muted); }
+.id-bar { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 4px; padding: 6px 10px; font-size: 0.86rem; color: var(--ink); min-width: 0; }
+.id-arrow { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); padding-left: 162px; }
+@media (max-width: 560px) { .id-step { grid-template-columns: minmax(0, 1fr); gap: 4px; } .id-arrow { padding-left: 0; } .id-bar { width: 100% !important; } }
+.id-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.id-rule { border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; background: var(--paper); display: grid; gap: 4px; align-content: start; }
+.id-rule strong { font-family: var(--display); font-weight: 600; }
+.id-rule span { font-size: 0.9rem; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -215,8 +228,8 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l7"><span class="bar" style="background:var(--l7)"></span><span class="nm">Data foundation</span><span class="lv">L7</span></a></li>
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
-      <div class="cross"><strong>Cross-cutting</strong> — evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -572,6 +585,59 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         </div>
       </section>
 
+      <!-- IDENTITY & POLICY -->
+      <section id="identity">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--accent)"><i style="background:var(--accent)"></i>Across all layers · added from reader feedback</span>
+          <h2>Identity &amp; policy: on whose authority?</h2>
+        </div>
+        <p>Compute and data platforms settled access control years ago with IAM: every call carries a principal, and policy decides what it may touch. AI systems reopen the question, because the caller is increasingly an agent acting for a person. Every layer, from retrieval to tool execution, now has to answer one question: <b>on whose authority is this running, and with what limits?</b></p>
+
+        <div class="kv-panel">
+          <h3>1 · Authority should narrow at every hop</h3>
+          <div class="id-scope" role="list" aria-label="Scope narrows from user to app to agent to a single tool call">
+            <div class="id-step" role="listitem"><div class="who">User<small>signed in via SSO</small></div><div class="id-bar" style="width:100%">Everything this person is allowed to see and do</div></div>
+            <div class="id-arrow">↓ delegates a scoped token</div>
+            <div class="id-step" role="listitem"><div class="who">Application<small>registered client</small></div><div class="id-bar" style="width:75%">Read documents and calendar, on this user's behalf</div></div>
+            <div class="id-arrow">↓ token exchange for one task</div>
+            <div class="id-step" role="listitem"><div class="who">Agent<small>one task, short-lived</small></div><div class="id-bar" style="width:50%">Read documents in Project X, for 30 minutes</div></div>
+            <div class="id-arrow">↓ per-tool scope</div>
+            <div class="id-step" role="listitem"><div class="who">Tool call<small>single action</small></div><div class="id-bar" style="width:28%">Search Project X, read only</div></div>
+          </div>
+          <p class="cap">The agent never holds more access than the person it acts for, and each step down gets only what that step needs. If a token leaks or a prompt injection hijacks the agent, the damage stays inside the narrowest scope.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · The question each layer must answer</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Layer</th><th>Question</th><th>Control</th></tr></thead>
+              <tbody>
+                <tr><td>L1 Application</td><td>Who is the user?</td><td>SSO with OIDC, MFA, session lifetime</td></tr>
+                <tr><td>L2 Orchestration</td><td>What may this agent do for them?</td><td>Delegated, short-lived tokens (OAuth on-behalf-of, token exchange), step budgets, human approval for high-impact actions</td></tr>
+                <tr><td>L2 Tools</td><td>What can this call change?</td><td>Per-tool scopes and allow-lists, OAuth on MCP servers, read-only by default, dry runs</td></tr>
+                <tr><td>L3 Retrieval</td><td>Which documents may this user see?</td><td>Source ACLs carried into the index and filtered at query time, before anything reaches the prompt</td></tr>
+                <tr><td>L6 Gateway</td><td>Which tenant, quota and model?</td><td>API gateway, tenant isolation, rate limits, data-residency routing</td></tr>
+                <tr><td>L7 Data</td><td>May this data be used for this purpose?</td><td>Purpose-based access, consent flags, lineage</td></tr>
+                <tr><td>Audit</td><td>Who did what, for whom?</td><td>Log the full chain per action: user → agent → tool → resource</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · Design rules</h3>
+          <div class="id-rules">
+            <div class="id-rule"><strong>Enforce outside the model</strong><span>Prompts can be injected; policy checks in the gateway and tools cannot be talked out of a decision.</span></div>
+            <div class="id-rule"><strong>Deny by default</strong><span>A tool or document is reachable only when a policy explicitly allows it.</span></div>
+            <div class="id-rule"><strong>Short-lived, scoped credentials</strong><span>Minutes, not months. No shared service accounts acting for everyone.</span></div>
+            <div class="id-rule"><strong>Filter before generation</strong><span>Trim retrieval results by permission before the model sees them, never after it answers.</span></div>
+            <div class="id-rule"><strong>Policy as code</strong><span>Express rules in an engine such as OPA or Cedar so they are versioned, tested and reviewed.</span></div>
+            <div class="id-rule"><strong>Watch for confused deputies</strong><span>An agent with broad access can be tricked into using it for a user who lacks it. Carry the user's identity on every call.</span></div>
+          </div>
+        </div>
+      </section>
+
       <!-- LIFECYCLE -->
       <section id="flow">
         <div class="sec-head">
@@ -620,6 +686,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-10-04",
+    title: "On whose authority is this agent running?",
+    layer: "Cross-cutting",
+    body: [
+      "A reader's comment on this blog made a point I had underweighted: identity and policy deserve their own place on the architecture map. Compute and data platforms solved access control long ago with IAM. Every call carries a principal, and policy decides what it may touch. AI systems reopen the question, because the caller is increasingly an agent acting for a person.",
+      "That makes authority a chain, not a single login. A user delegates to an application, the application hands a narrower token to an agent for one task, and the agent calls tools with narrower scopes still. Each hop should get only what it needs and for only as long as it needs it. Retrieval has to filter documents by the user's permissions before anything reaches the prompt, and every tool call should carry the user's identity so it can be checked and audited.",
+      "The most important rule is to enforce policy outside the model. A prompt can be injected; a gateway or tool that checks a scoped token cannot be argued with. I've added a full Identity & policy section to the page with the authority chain, the question each layer must answer, and six design rules."
+    ],
+    takeaway: "An agent should never hold more access than the person it acts for. Scope it down at every hop and enforce the limits in code, not in the prompt."
+  },
   {
     date: "2026-10-03",
     title: "RAG or fine-tuning? Start with what needs to change",
