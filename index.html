@@ -204,6 +204,24 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 .id-rule { border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; background: var(--paper); display: grid; gap: 4px; align-content: start; }
 .id-rule strong { font-family: var(--display); font-weight: 600; }
 .id-rule span { font-size: 0.9rem; color: var(--muted); }
+
+/* Governance by design section */
+.gv-chain { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; counter-reset: g; }
+@media (max-width: 720px) { .gv-chain { grid-template-columns: minmax(0, 1fr); } }
+.gv-chain li { counter-increment: g; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.gv-chain li::before { content: counter(g, decimal-leading-zero) " · " attr(data-stage); font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.gv-chain li strong { font-family: var(--display); font-weight: 600; font-size: 1rem; line-height: 1.25; }
+.gv-chain li span { font-size: 0.88rem; color: var(--muted); }
+.gv-chain li.gv-end { border-color: var(--accent); border-width: 2px; }
+.gv-ex { font-size: 0.9rem; color: var(--muted); }
+.gv-ex b { color: var(--ink); font-weight: 600; }
+.gv-skills { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr); gap: 10px; align-items: stretch; }
+@media (max-width: 720px) { .gv-skills { grid-template-columns: minmax(0, 1fr); } }
+.gv-skills > div { border: 1px solid var(--line); border-radius: 4px; padding: 12px; background: var(--paper); display: grid; gap: 6px; align-content: start; }
+.gv-skills > div.mid { border: 2px solid var(--accent); background: var(--accent-soft); }
+.gv-skills h4 { margin: 0; font-family: var(--mono); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.gv-skills .mid h4 { color: var(--accent); }
+#governance td:first-child { white-space: normal; min-width: 170px; }
 </style>
 </head>
 <body>
@@ -229,7 +247,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -638,6 +656,56 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         </div>
       </section>
 
+      <!-- GOVERNANCE BY DESIGN -->
+      <section id="governance">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--accent)"><i style="background:var(--accent)"></i>Across all layers · added from reader feedback</span>
+          <h2>Governance by design: proving the system does what it should</h2>
+        </div>
+        <p>Governance added at review time produces documents about a system. Governance built in at design time produces <b>evidence of how it behaves</b>. The rule is simple: every intended behaviour becomes a testable requirement, and every requirement leaves a trail that a reviewer or auditor can follow from intent to production.</p>
+
+        <div class="kv-panel">
+          <h3>1 · The traceability chain</h3>
+          <ol class="gv-chain">
+            <li data-stage="Intent"><strong>Intended use</strong><span>What the system is for, who uses it, what it must never do, and its risk tier.</span></li>
+            <li data-stage="Specify"><strong>Requirement</strong><span>Each "must" and "must not" written so it can be measured.</span></li>
+            <li data-stage="Design"><strong>Design control</strong><span>The mechanism that enforces it: retrieval scope, guardrail, human approval, tool permission.</span></li>
+            <li data-stage="Test"><strong>Eval with a threshold</strong><span>A test set and pass mark, run in CI. A failed gate blocks the release.</span></li>
+            <li data-stage="Operate"><strong>Production monitor</strong><span>The same check sampled on live traffic, with an alert and an owner.</span></li>
+            <li data-stage="Prove" class="gv-end"><strong>Evidence</strong><span>Versioned eval reports, approvals, logs and incidents, produced by the pipeline itself.</span></li>
+          </ol>
+          <p class="gv-ex"><b>Worked example, an HR policy assistant.</b> Intent: answer employee questions from the approved handbook only. Requirement: no answer without a citation to the handbook. Design control: retrieval limited to the handbook index, and the response is rejected if it has no citation. Eval: 300 test questions, at least 95% grounded and zero uncited answers. Monitor: 2% of live answers scored for groundedness each week. Evidence: eval report per release, weekly monitor results, sign-off record.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · The evidence pack</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Evidence</th><th>Produced by</th><th>When</th><th>What frameworks ask for</th></tr></thead>
+              <tbody>
+                <tr><td>Intended use &amp; risk tier</td><td>Product owner with risk</td><td>Design</td><td>NIST AI RMF <i>Map</i>; EU AI Act risk classification</td></tr>
+                <tr><td>Requirements as eval sets</td><td>Engineering</td><td>Design and build</td><td>NIST AI RMF <i>Measure</i>; accuracy and robustness obligations</td></tr>
+                <tr><td>Model, data &amp; prompt cards</td><td>Engineering</td><td>Every release</td><td>Technical documentation; data governance</td></tr>
+                <tr><td>Eval reports &amp; gate decisions</td><td>CI pipeline</td><td>Every release</td><td>ISO/IEC 42001 performance evaluation</td></tr>
+                <tr><td>Human-oversight design &amp; approvals</td><td>Accountable owner</td><td>Before deploy</td><td>Human oversight obligations</td></tr>
+                <tr><td>Logs, monitors &amp; incidents</td><td>Platform team</td><td>Continuously</td><td>Record-keeping; NIST AI RMF <i>Manage</i></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <span class="kv-note">ISO/IEC 42001, the NIST AI RMF and the EU AI Act overlap heavily. Design the evidence once and map it to each, rather than running three separate compliance efforts.</span>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · The AI engineering governance skill set</h3>
+          <div class="gv-skills">
+            <div><h4>Technical</h4><ul class="plain"><li>Eval design and metrics</li><li>RAG, agents and guardrails</li><li>CI/CD and MLOps pipelines</li><li>Observability and logging</li></ul></div>
+            <div class="mid"><h4>AI engineering governance</h4><ul class="plain"><li>Turn policy into testable requirements</li><li>Set release gates and thresholds</li><li>Design evidence that is generated, not assembled</li><li>Explain model behaviour to auditors and the board</li></ul></div>
+            <div><h4>Governance</h4><ul class="plain"><li>Risk assessment and tiering</li><li>Regulatory mapping</li><li>Accountability and approvals</li><li>Audit and assurance</li></ul></div>
+          </div>
+          <p class="cap">The middle column is the scarce role: someone who can read a model card and a control framework with equal confidence.</p>
+        </div>
+      </section>
+
       <!-- LIFECYCLE -->
       <section id="flow">
         <div class="sec-head">
@@ -686,6 +754,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-10-05",
+    title: "Governance that proves, not governance that describes",
+    layer: "Cross-cutting",
+    body: [
+      "Another reader comment shaped today's post: AI engineering governance should start at design time, so that there is proof the system does what it is intended to do. Most governance still arrives at review time, where it produces documents about a system rather than evidence of how it behaves.",
+      "Designing it in follows one rule. Every intended behaviour becomes a testable requirement, and every requirement leaves a trail. Intended use leads to a requirement, the requirement to a design control, the control to an eval with a pass threshold that gates each release, the eval to a production monitor, and all of it to evidence the pipeline produces automatically. An auditor can follow one line from intent to live traffic.",
+      "This also simplifies compliance. ISO/IEC 42001, the NIST AI RMF and the EU AI Act ask for largely the same evidence, so designing it once covers all three. The harder part is people: it takes someone who can read both a model card and a control framework. I've added a Governance by design section to the page with the traceability chain, a worked example, the evidence pack and that skill set."
+    ],
+    takeaway: "If a requirement has no eval and no monitor, it is a hope, not a control. Design the evidence at the same time as the system."
+  },
   {
     date: "2026-10-04",
     title: "On whose authority is this agent running?",
