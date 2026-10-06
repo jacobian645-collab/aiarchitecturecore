@@ -222,6 +222,24 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 .gv-skills h4 { margin: 0; font-family: var(--mono); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .gv-skills .mid h4 { color: var(--accent); }
 #governance td:first-child { white-space: normal; min-width: 170px; }
+
+/* Fun fact section */
+.ff-head { font-family: var(--display); font-weight: 700; font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.05; text-wrap: balance; }
+.ff-head em { font-style: normal; color: var(--signal); }
+.ff-grid { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 4px; }
+.ff-grid i { display: block; aspect-ratio: 1; border-radius: 3px; background: var(--line); }
+.ff-grid i.ml { background: var(--signal); }
+.ff-lg { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; font-family: var(--mono); font-size: 0.82rem; color: var(--muted); align-items: baseline; }
+.ff-lg b { font-family: var(--display); font-size: 1.6rem; font-weight: 700; color: var(--ink); margin-right: 6px; }
+.ff-lg .a b { color: var(--signal); }
+.ff-map { display: grid; }
+.ff-map .r { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); align-items: baseline; font-size: 0.95rem; }
+.ff-map .r.h { border-top: 0; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding-top: 0; }
+.ff-map .r span:last-child { font-weight: 600; }
+.ff-map .r.h span:last-child { font-weight: 400; }
+.ff-map .ar { color: var(--muted); font-family: var(--mono); }
+.ff-map .r.ml { border-top: 2px solid var(--signal); }
+.ff-map .r.ml span:last-child { color: var(--signal); }
 </style>
 </head>
 <body>
@@ -247,7 +265,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -706,6 +724,30 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         </div>
       </section>
 
+      <!-- FUN FACT -->
+      <section id="funfact">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--signal)"><i style="background:var(--signal)"></i>Fun fact · AI engineering</span>
+          <p class="ff-head">The model is the <em>smallest box</em> in the system.</p>
+        </div>
+        <p>In 2015, a team of Google engineers published a paper called <i>Hidden Technical Debt in Machine Learning Systems</i>. Its most famous diagram shows a real-world ML system as a large set of boxes, with the ML code as a small black box in the middle. The paper warned that a mature system might end up being <b>at most 5% machine learning code</b> and at least 95% everything around it.</p>
+        <div class="kv-panel">
+          <h3>At most 5 squares in 100</h3>
+          <div class="ff-grid" role="img" aria-label="100 squares: 5 highlighted in the centre as ML code, 95 as the surrounding system"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="ml"></i><i class="ml"></i><i class="ml"></i><i class="ml"></i><i class="ml"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="ff-lg"><span class="a"><b>5%</b>ML code</span><span><b>95%</b>data, configuration, serving, monitoring and glue code</span></div>
+        </div>
+        <div class="kv-panel">
+          <h3>A decade later, the boxes have new names</h3>
+          <div class="ff-map">
+            <div class="r h"><span>The 95% in 2015</span><span></span><span>The 95% in LLM systems today</span></div>
+            <div class="r"><span>Data collection &amp; verification</span><span class="ar">→</span><span>Data pipelines, RAG ingestion</span></div><div class="r"><span>Feature extraction</span><span class="ar">→</span><span>Chunking &amp; embeddings</span></div><div class="r"><span>Configuration</span><span class="ar">→</span><span>Prompts, model routing</span></div><div class="r"><span>Serving infrastructure</span><span class="ar">→</span><span>Inference engines, KV cache</span></div><div class="r"><span>Monitoring &amp; analysis tools</span><span class="ar">→</span><span>Evals, LLM observability</span></div><div class="r"><span>Process management</span><span class="ar">→</span><span>Agent orchestration, tool permissions</span></div>
+            <div class="r ml"><span>ML code</span><span class="ar">→</span><span>Often a single API call</span></div>
+          </div>
+          <p class="cap">With foundation models the ratio has only grown. The model can now be one call to a hosted endpoint, while the retrieval, evals, guardrails, identity and serving around it are what you actually build and run. That is why this blog maps eight layers, and only one of them is the model.</p>
+          <span class="kv-note">Source: D. Sculley et al., “Hidden Technical Debt in Machine Learning Systems”, NeurIPS 2015. The 5% figure is the paper's estimate for glue-code-heavy systems, not a measured average.</span>
+        </div>
+      </section>
+
       <!-- LIFECYCLE -->
       <section id="flow">
         <div class="sec-head">
@@ -754,6 +796,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-10-06",
+    title: "Fun fact: the model is the smallest box in the system",
+    layer: "Cross-cutting",
+    body: [
+      "In 2015, Google engineers published Hidden Technical Debt in Machine Learning Systems. Its best-known diagram shows a production ML system as a large grid of boxes (data collection, verification, feature extraction, configuration, serving, monitoring, process management) with the ML code as one small black box in the middle. The paper warned that a mature system might end up being at most 5% machine learning code and at least 95% glue and infrastructure.",
+      "A decade later the boxes have new names. Feature extraction became chunking and embeddings, configuration became prompts and model routing, serving became inference engines and KV caches, and monitoring became evals and LLM observability. The ML code itself is often a single API call to a hosted model.",
+      "So the ratio has only grown. Most of the work, risk and cost in an AI system now sits in the layers around the model, which is exactly why this blog maps eight layers and only one of them is the model."
+    ],
+    takeaway: "When you plan an AI project, budget for the 95%. The model is the part you are most likely to buy; the system around it is the part you have to build."
+  },
   {
     date: "2026-10-05",
     title: "Governance that proves, not governance that describes",
