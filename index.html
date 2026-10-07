@@ -224,6 +224,15 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 #governance td:first-child { white-space: normal; min-width: 170px; }
 
 /* Fun fact section */
+.jev-rules { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.jev-svg { overflow-x: auto; }
+.jev-svg svg { display: block; width: 100%; min-width: 560px; max-width: 720px; height: auto; }
+.jev-svg text { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.jev-svg .nm { font-family: var(--display); font-size: 14px; font-weight: 600; fill: var(--ink); }
+.jev-svg .bx { fill: var(--paper); stroke: var(--line); stroke-width: 1.2; }
+.jev-svg .hot { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.6; }
+.jev-svg .ln { stroke: var(--muted); stroke-width: 1.2; fill: none; }
+.jev-svg .ah { fill: var(--muted); }
 .ff-head { font-family: var(--display); font-weight: 700; font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.05; text-wrap: balance; }
 .ff-head em { font-style: normal; color: var(--signal); }
 .ff-grid { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 4px; }
@@ -265,7 +274,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -748,6 +757,72 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         </div>
       </section>
 
+      <!-- JEV: SYSTEM ONE MODELS -->
+      <section id="jev">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l2)"><i style="background:var(--l2)"></i>Layer 2 · a new kind of model</span>
+          <h2>JEV: the model that decides instead of writes</h2>
+        </div>
+        <p>JEV, from TypeSafe AI (early access since 15 September 2026), never writes a sentence. You hand it messy input plus a set of typed questions, and it returns typed answers, each with a calibrated probability. TypeSafe calls it the first <b>System One model</b>, after Kahneman's fast, intuitive System 1. Today's LLMs are System 2 machines: slow, deliberate, and expensive to ask for every small choice an agent makes.</p>
+
+        <div class="kv-panel">
+          <h3>1 · Where it sits: a decision gate in front of the model</h3>
+          <div class="jev-svg"><svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="An agent step asks JEV a bounded question. If JEV is confident, the system acts directly: route, call a tool or block. If not, or if text is needed, the call escalates to a strong LLM, whose result then drives the action.">
+            <defs><marker id="jah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="ah"/></marker></defs>
+            <path class="ln" d="M164 60 H186" marker-end="url(#jah)"/>
+            <path class="ln" d="M336 60 H368" marker-end="url(#jah)"/>
+            <path class="ln" d="M490 60 H524" marker-end="url(#jah)"/>
+            <path class="ln" d="M430 96 V161" marker-end="url(#jah)"/>
+            <path class="ln" d="M504 190 H600 V89" marker-end="url(#jah)"/>
+            <rect class="bx" x="16" y="33" width="148" height="54" rx="6"/>
+            <text class="nm" x="90" y="57" text-anchor="middle">Agent step</text>
+            <text x="90" y="75" text-anchor="middle">L2 orchestration</text>
+            <rect class="hot" x="188" y="33" width="148" height="54" rx="6"/>
+            <text class="nm" x="262" y="57" text-anchor="middle">JEV</text>
+            <text x="262" y="75" text-anchor="middle">answer + confidence</text>
+            <polygon class="bx" points="370,60 430,24 490,60 430,96"/>
+            <text class="nm" x="430" y="65" text-anchor="middle">Confident?</text>
+            <rect class="bx" x="526" y="33" width="148" height="54" rx="6"/>
+            <text class="nm" x="600" y="57" text-anchor="middle">Act directly</text>
+            <text x="600" y="75" text-anchor="middle">route · tool · block</text>
+            <rect class="bx" x="356" y="163" width="148" height="54" rx="6"/>
+            <text class="nm" x="430" y="187" text-anchor="middle">Strong LLM</text>
+            <text x="430" y="205" text-anchor="middle">L4 · reason or write</text>
+            <text x="507" y="52" text-anchor="middle">yes</text>
+            <text x="440" y="132">no, or text needed</text>
+            <text x="552" y="182" text-anchor="middle">LLM result</text>
+          </svg></div>
+          <p class="cap">Every agent step asks small, bounded questions: which tool, which model, retry or stop, allow or block. JEV answers those in one fast pass. When its confidence falls below a threshold, or the step needs text or free-form arguments, the call escalates to the foundation model. JEV does not replace the LLM; it decides when the LLM is worth calling.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · How it works</h3>
+          <div class="id-rules jev-rules">
+            <div class="id-rule"><strong>Typed questions, not prompts</strong><span>You declare the answer space up front: a yes/no, one of up to 255 labels, a score. JEV can only answer inside it, unlike LLM structured output, which generates first and validates after.</span></div>
+            <div class="id-rule"><strong>One parallel pass</strong><span>No token-by-token decoding. All questions are answered at once, so many decisions cost roughly one call. TypeSafe quotes 70–500 ms end to end.</span></div>
+            <div class="id-rule"><strong>Calibrated confidence</strong><span>Trained with RLCD (Reinforcement Learning for Calibrated Decisions). A 0.9 should be right about 90% of the time, which is what makes a confidence threshold safe to automate on.</span></div>
+            <div class="id-rule"><strong>Always typed, not always right</strong><span>JEV cannot hallucinate a paragraph, but it can still pick the wrong label. Evaluate it like any classifier, against your own labelled set.</span></div>
+          </div>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · Claims vs caveats</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Vendor claim</th><th>Figure</th><th>Read it as</th></tr></thead>
+              <tbody>
+                <tr><td>End-to-end latency</td><td>70–500 ms</td><td>Plausible: removing autoregression explains most of it</td></tr>
+                <tr><td>Speed vs frontier LLMs</td><td>40–200×</td><td>Only on bounded decisions, not reasoning</td></tr>
+                <tr><td>Best single workflow</td><td>193.6× faster, 444.6× cheaper</td><td>One showcase workflow, not an average</td></tr>
+                <tr><td>Input price</td><td>$0.042 per million tokens</td><td>Early-access pricing; may change</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">No independent evaluation accompanied the launch. TypeSafe's own documentation lists weak spots: counting and maths, date ordering, numeric proximity, double negation, long context, adversarial inputs and CJK languages. The first academic study, REFLEX (Wu &amp; Lim, NTU), found that JEV-style selective control saves compute only when a task actually contains bounded decisions to offload.</p>
+          <span class="kv-note">Sources: TypeSafe AI launch materials (15 Sep 2026) as reported by DigitalOcean, DataCamp and RuntimeWire; T. Wu and W. Y. B. Lim, “REFLEX with Jev for Efficient Selective Control in LLM Agents”, arXiv 2609.26532. All performance figures are vendor-reported.</span>
+        </div>
+      </section>
+
       <!-- LIFECYCLE -->
       <section id="flow">
         <div class="sec-head">
@@ -796,6 +871,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-10-08",
+    title: "JEV: the model that decides instead of writes",
+    layer: "L2 Orchestration",
+    body: [
+      "Most steps in an AI agent are not writing tasks. They are small choices: which tool, which model, retry or stop, allow or block. Yet we usually pay a generative model to make every one of them, token by token. TypeSafe AI's JEV, in early access since 15 September, is the first serious bet against that default.",
+      "JEV is what TypeSafe calls a System One model. You give it unstructured input plus typed questions, and it returns typed answers with calibrated probabilities in a single parallel pass. It never generates text, so its output is always well-formed, though not always right. The vendor quotes 70–500 ms per call and 40–200× speed-ups on these tasks; none of that is independently verified yet.",
+      "Architecturally it belongs in front of the LLM, not instead of it. JEV answers the bounded decisions; when its confidence is low, or the step needs text, the call escalates to the foundation model. I've added a JEV section to the page with that gate pattern, the three design ideas behind it, and the claims next to their caveats."
+    ],
+    takeaway: "Not every AI decision needs a generative model. Route bounded decisions to the cheapest model you can trust, and let calibrated confidence decide when to escalate."
+  },
   {
     date: "2026-10-06",
     title: "Fun fact: the model is the smallest box in the system",
