@@ -249,6 +249,26 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 .ff-map .ar { color: var(--muted); font-family: var(--mono); }
 .ff-map .r.ml { border-top: 2px solid var(--signal); }
 .ff-map .r.ml span:last-child { color: var(--signal); }
+
+/* Scale fun fact (Day 7) */
+.sc-wrap { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 24px; align-items: start; }
+#scale table { min-width: 0; font-size: 0.86rem; }
+#scale th, #scale td { padding: 8px 10px; }
+#scale .id-rules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 560px) { #scale .id-rules { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 720px) { .sc-wrap { grid-template-columns: minmax(0, 1fr); } }
+.sc-field { display: grid; gap: 8px; }
+.sc-field canvas { display: block; width: 100%; max-width: 220px; aspect-ratio: 1; height: auto; }
+.sc-field .cap b { color: var(--signal); font-weight: 600; }
+.sc-bar { display: flex; gap: 2px; height: 22px; }
+.sc-bar span { display: block; height: 100%; }
+.sc-bar .g { flex: 148; background: var(--signal); border-radius: 4px 0 0 4px; }
+.sc-bar .h { flex: 72; background: var(--signal); opacity: 0.55; }
+.sc-bar .o { flex: 199; background: var(--line); border-radius: 0 4px 4px 0; }
+.sc-lg { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+.sc-lg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+#scale td:first-child { white-space: normal; }
+#scale td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -274,7 +294,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -823,6 +843,72 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         </div>
       </section>
 
+      <!-- SCALE: DAY 7 FUN FACT -->
+      <section id="scale">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--signal)"><i style="background:var(--signal)"></i>Fun fact · Layers 5 &amp; 8</span>
+          <p class="ff-head">Every modern LLM traces back to <em>8 GPUs and 3.5 days</em>.</p>
+        </div>
+        <p>In June 2017, eight Google researchers published <i>Attention Is All You Need</i>. They were not building a chatbot; they wanted better translation between English, German and French. Their larger Transformer trained on one machine with 8 NVIDIA P100 GPUs for 300,000 steps, about 3.5 days. Seven years later, Meta's Llama 3.1 405B used essentially the same decoder design, with refinements such as grouped-query attention and rotary positions, and trained on 16,384 H100s.</p>
+
+        <div class="kv-panel">
+          <h3>1 · The same idea, at a different scale</h3>
+          <div class="sc-wrap">
+            <div class="sc-field">
+              <canvas id="sc-canvas" width="512" height="512" role="img" aria-label="A 128 by 128 grid of 16,384 dots, one per GPU. Eight dots in the top-left corner are highlighted."></canvas>
+              <span class="cap">Each dot is one GPU. The <b>8 highlighted</b> (top left) trained the Transformer. All 16,384 trained Llama 3.1 405B.</span>
+            </div>
+            <div class="tbl">
+              <table>
+                <thead><tr><th></th><th>2017 Transformer</th><th>2024 Llama 3.1</th><th>Increase</th></tr></thead>
+                <tbody>
+                  <tr><td>GPUs</td><td class="n">8 × P100</td><td class="n">16,384 × H100</td><td class="n">~2,000×</td></tr>
+                  <tr><td>Parameters</td><td class="n">213 million</td><td class="n">405 billion</td><td class="n">~1,900×</td></tr>
+                  <tr><td>GPU-hours</td><td class="n">~672</td><td class="n">30.84 million</td><td class="n">~46,000×</td></tr>
+                  <tr><td>Training data</td><td class="n">36M sentences</td><td class="n">15.6T tokens</td><td class="n">—</td></tr>
+                  <tr><td>Compute</td><td class="n">—</td><td class="n">3.8 × 10²⁵ FLOPs</td><td class="n">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="cap">Each H100 is also several times faster than a P100, so the real increase in compute is larger than the GPU-hours suggest. The 2017 model reached state-of-the-art translation (28.4 BLEU English–German, 41.8 English–French) at what its authors called a small fraction of earlier training costs.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · At scale, failure is routine</h3>
+          <p>During a 54-day stretch of Llama 3 training, Meta recorded <b>419 unexpected interruptions</b>, about one every three hours.</p>
+          <div class="sc-bar" role="img" aria-label="419 interruptions: 148 faulty GPUs, 72 GPU memory, 199 other causes"><span class="g" title="148 faulty GPUs"></span><span class="h" title="72 GPU memory (HBM3)"></span><span class="o" title="199 other causes"></span></div>
+          <div class="sc-lg"><span><i style="background:var(--signal)"></i>148 faulty GPUs</span><span><i style="background:var(--signal);opacity:.55"></i>72 GPU memory (HBM3)</span><span><i style="background:var(--line)"></i>199 other causes</span></div>
+          <p class="cap">Automatic failure detection, fast checkpointing and restarts still kept effective training time above 90%. On 8 GPUs, a failure is an annoyance. On 16,384 it is a design requirement.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · What actually changed: the engineering</h3>
+          <div class="id-rules">
+            <div class="id-rule"><strong>Parallelism</strong><span>One model split across thousands of GPUs with data, tensor and pipeline parallelism (Layer 8).</span></div>
+            <div class="id-rule"><strong>Data at scale</strong><span>Trillions of tokens cleaned, deduplicated and streamed fast enough to keep every GPU busy (Layer 7).</span></div>
+            <div class="id-rule"><strong>Reliability</strong><span>Surviving a hardware failure every few hours without losing progress (Layer 8).</span></div>
+            <div class="id-rule"><strong>Serving</strong><span>KV caches, batching and quantization to make a 405B model affordable to run (Layer 6).</span></div>
+          </div>
+          <span class="kv-note">Sources: A. Vaswani et al., “Attention Is All You Need”, NeurIPS 2017; Meta, “The Llama 3 Herd of Models” (2024) and Llama 3.1 model card. 672 GPU-hours = 8 GPUs × 3.5 days.</span>
+        </div>
+        <script>
+        (function () {
+          var c = document.getElementById("sc-canvas"); if (!c || !c.getContext) return;
+          function draw() {
+            var cs = getComputedStyle(document.documentElement), x = c.getContext("2d");
+            var dim = cs.getPropertyValue("--muted").trim(), hot = cs.getPropertyValue("--signal").trim();
+            var n = 128, cell = c.width / n, d = cell * 0.7;
+            x.clearRect(0, 0, c.width, c.height);
+            for (var r = 0; r < n; r++) for (var k = 0; k < n; k++) { var h = (r === 0 && k < 8); x.globalAlpha = h ? 1 : 0.4; x.fillStyle = h ? hot : dim; x.fillRect(k * cell, r * cell, d, d); }
+            x.globalAlpha = 1; x.strokeStyle = hot; x.lineWidth = 1.5; x.strokeRect(0.5, 0.5, 8 * cell, cell);
+          }
+          draw();
+          try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw); } catch (e) {}
+        })();
+        </script>
+      </section>
+
       <!-- LIFECYCLE -->
       <section id="flow">
         <div class="sec-head">
@@ -871,6 +957,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-10-10",
+    title: "Fun fact: every modern LLM traces back to 8 GPUs and 3.5 days",
+    layer: "L8 Infrastructure",
+    body: [
+      "In 2017, the paper Attention Is All You Need introduced the Transformer. Its larger model trained on one machine with 8 NVIDIA P100 GPUs in about 3.5 days, roughly 672 GPU-hours, and had 213 million parameters. It was built for translation, not chat.",
+      "Meta's Llama 3.1 405B uses essentially the same decoder design. It trained on 16,384 H100 GPUs for 30.84 million GPU-hours, on 15.6 trillion tokens: about 2,000 times the GPUs, 1,900 times the parameters and 46,000 times the GPU-hours, on much faster chips. At that scale failure becomes routine. Meta logged 419 unexpected interruptions in 54 days, about one every three hours, yet kept effective training time above 90%.",
+      "The core idea barely changed. What changed was the engineering around it: parallelism across thousands of GPUs, data pipelines for trillions of tokens, automatic recovery from constant hardware faults, and serving techniques that make the result affordable."
+    ],
+    takeaway: "Most of the progress since 2017 is systems engineering, not new architecture."
+  },
   {
     date: "2026-10-08",
     title: "JEV: the model that decides instead of writes",
