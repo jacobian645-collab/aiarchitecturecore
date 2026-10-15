@@ -269,6 +269,23 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 .sc-lg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
 #scale td:first-child { white-space: normal; }
 #scale td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* Inside layer 1 (Day 8) */
+#experience td:first-child { white-space: normal; min-width: 150px; }
+.ux-svg .th { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.ux-svg .ax { stroke: var(--line); stroke-width: 1; }
+.ux-svg .ink { fill: var(--ink); }
+.ux-svg .sig { fill: var(--signal); }
+.ux-quad { display: grid; grid-template-columns: 96px repeat(2, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+.ux-ax { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); align-self: end; }
+.ux-ax.row { align-self: center; }
+.ux-cell { border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; background: var(--paper); display: grid; gap: 4px; align-content: start; min-width: 0; }
+.ux-cell small { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); display: none; }
+.ux-cell strong { font-family: var(--display); font-weight: 600; font-size: 1.02rem; }
+.ux-cell span { font-size: 0.88rem; color: var(--muted); }
+.ux-cell.mid { background: var(--accent-soft); border-color: var(--accent); }
+.ux-cell.top { background: var(--accent-soft); border: 2px solid var(--accent); }
+@media (max-width: 560px) { .ux-quad { grid-template-columns: minmax(0, 1fr); } .ux-ax { display: none; } .ux-cell small { display: block; } }
 </style>
 </head>
 <body>
@@ -294,7 +311,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -325,6 +342,116 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <div class="cols">
           <div><h4>Components</h4><ul class="plain"><li>Chat UI, embedded copilots, batch pipelines</li><li>API gateway, auth, rate limiting, quotas</li><li>Streaming transport (SSE / WebSocket)</li><li>Feedback capture (thumbs, edits, escalations)</li></ul></div>
           <div><h4>Design decisions</h4><ul class="plain"><li>Stream tokens or return a complete answer</li><li>Synchronous chat vs async job with a callback</li><li>Human-in-the-loop checkpoints for high-impact actions</li><li>How citations and confidence are shown</li></ul></div>
+        </div>
+        <p class="gv-ex"><a href="#experience">Inside layer 1 ↓</a> the latency contract, designing for the wrong answer, and feedback signals.</p>
+      </section>
+
+      <!-- INSIDE LAYER 1: DAY 8 -->
+      <section id="experience">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l1)"><i style="background:var(--l1)"></i>Inside layer 1</span>
+          <h2>The contract with the user: wait, trust and the wrong answer</h2>
+        </div>
+        <p>The model decides what an answer says. Layer 1 decides <b>how long the user waits for it, how far they trust it, and what happens when it is wrong</b>. Those choices shape adoption more than a few points of benchmark accuracy, and none of them live in the weights.</p>
+
+        <div class="kv-panel">
+          <h3>1 · Four ways people meet the system</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Surface</th><th>Who starts it</th><th>Time budget</th><th>When it is wrong</th><th>Design priority</th></tr></thead>
+              <tbody>
+                <tr><td>Chat assistant</td><td>The user asks</td><td>First words within about a second; the full answer can stream for longer</td><td>The user reads it and judges</td><td>Streaming, citations, easy follow-up</td></tr>
+                <tr><td>Embedded copilot</td><td>The user, inside a tool they already use</td><td>Around a second, or the suggestion is ignored</td><td>Ignored or edited before use</td><td>Small outputs, accept or reject in one action</td></tr>
+                <tr><td>Background agent</td><td>A trigger, schedule or delegated task</td><td>Minutes to hours</td><td>It may act before anyone looks</td><td>Progress, approvals, audit trail, undo</td></tr>
+                <tr><td>API / service</td><td>Another system</td><td>The caller's SLO, for the whole response</td><td>Bad output flows downstream silently</td><td>Schemas, validation, retries, idempotency</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · The latency contract: streaming changes which number users feel</h3>
+          <div class="kv-svg ux-svg">
+            <svg viewBox="0 0 680 210" role="img" aria-label="Timeline from 0 to 12 seconds. Without streaming, a 400-token answer leaves a blank screen for 10.5 seconds. With streaming, first words appear at 0.5 seconds and text keeps arriving until 10.5 seconds. Dashed lines mark the 1 second flow limit and the 10 second attention limit.">
+              <line class="th" x1="192.5" y1="30" x2="192.5" y2="168"/>
+              <line class="th" x1="575" y1="30" x2="575" y2="168"/>
+              <text x="197" y="24">1 s · flow holds</text>
+              <text x="571" y="24" text-anchor="end">10 s · attention limit</text>
+
+              <text class="ttl" x="0" y="60">Full answer</text>
+              <text x="0" y="76">no streaming</text>
+              <rect class="c-empty" x="150" y="48" width="446" height="28" rx="3"/>
+              <text x="373" y="66" text-anchor="middle">blank screen</text>
+              <rect class="sig" x="596" y="48" width="8" height="28" rx="2"/>
+              <text class="ink" x="610" y="66">10.5 s</text>
+
+              <text class="ttl" x="0" y="130">Streamed</text>
+              <text x="0" y="146">same answer</text>
+              <rect class="c-empty" x="150" y="118" width="21" height="28" rx="3"/>
+              <rect class="c-cache" x="171" y="118" width="425" height="28" rx="3"/>
+              <rect class="sig" x="171" y="118" width="5" height="28"/>
+              <text x="388" y="136" text-anchor="middle">text arrives, faster than anyone reads</text>
+              <text class="ink" x="171" y="110" text-anchor="middle">0.5 s</text>
+
+              <line class="ax" x1="150" y1="178" x2="660" y2="178"/>
+              <g text-anchor="middle">
+                <text x="150" y="196">0</text><text x="235" y="196">2</text><text x="320" y="196">4</text><text x="405" y="196">6</text><text x="490" y="196">8</text><text x="575" y="196">10</text><text x="660" y="196" text-anchor="end">12 s</text>
+              </g>
+            </svg>
+          </div>
+          <div class="kv-eq" aria-label="Silent reading at about 238 words per minute is about 5 tokens per second; decoding at 40 tokens per second is about 7.5 times faster">
+            <div class="kv-tile"><span class="n">~238</span><span class="u">words / min, silent reading</span></div><span class="kv-op">≈</span>
+            <div class="kv-tile"><span class="n">~5</span><span class="u">tokens / s a person reads</span></div><span class="kv-op">vs</span>
+            <div class="kv-tile"><span class="n">40</span><span class="u">tokens / s the model writes</span></div><span class="kv-op">=</span>
+            <div class="kv-tile res"><span class="n">~7.5×</span><span class="u">faster than reading</span></div>
+          </div>
+          <p class="cap">Example: 0.5 s to first token, then 400 tokens at 40 tokens/s. Unstreamed, the user feels the total time and crosses the 10-second attention limit. Streamed, they feel only the time to first token, and the text outruns their reading. That is why chat surfaces optimise TTFT. Agents, API callers and structured outputs read the whole response before acting, so for them total latency is still the contract. Past about 10 seconds, switch to an async job with visible progress and a notification.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · Design for the wrong answer: autonomy is an interface choice</h3>
+          <div class="ux-quad">
+            <span></span><span class="ux-ax">Easy to undo</span><span class="ux-ax">Hard to undo</span>
+            <span class="ux-ax row">High impact</span>
+            <div class="ux-cell mid"><small>High impact · easy to undo</small><strong>Approve the plan</strong><span>Update 400 CRM records. The user approves the plan; a snapshot allows rollback.</span></div>
+            <div class="ux-cell top"><small>High impact · hard to undo</small><strong>A person decides</strong><span>Issue a refund or email every customer. The AI drafts and recommends; a named person approves.</span></div>
+            <span class="ux-ax row">Low impact</span>
+            <div class="ux-cell"><small>Low impact · easy to undo</small><strong>Act, then tell</strong><span>Tag and route a support ticket. Show what changed, with one-click undo.</span></div>
+            <div class="ux-cell mid"><small>Low impact · hard to undo</small><strong>Preview, then act</strong><span>Post a reply in a team channel. Show the exact message before it goes.</span></div>
+          </div>
+          <p class="cap">The same model can sit in all four boxes; what changes is how much the interface lets it do before a person looks. Pair this with the scoped tokens in <a href="#identity">Identity &amp; policy</a>: the interface asks for approval, the token enforces it.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>4 · Every interaction is a label</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Signal</th><th>Kind</th><th>What it usually tells you</th></tr></thead>
+              <tbody>
+                <tr><td>Thumbs, ratings, reports</td><td>Explicit</td><td>A direct judgment, but few users give one, and mostly when annoyed or delighted</td></tr>
+                <tr><td>Copy, accept, send unedited</td><td>Implicit</td><td>The output was usable as it was</td></tr>
+                <tr><td>Edit before use</td><td>Implicit</td><td>Usable but wrong somewhere, and the diff shows exactly where. The richest eval data you will get</td></tr>
+                <tr><td>Regenerate or rephrase</td><td>Implicit</td><td>The first answer missed the intent</td></tr>
+                <tr><td>Stop mid-stream or abandon</td><td>Implicit</td><td>Too slow, too long, or heading the wrong way</td></tr>
+                <tr><td>Escalate to a human</td><td>Implicit</td><td>The system could not resolve it; the case is a ready-made test</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">Log each signal with the trace ID of the request, so it links back to the prompt, retrieved context and model version that produced it. That is how everyday use becomes eval sets and the production monitors in <a href="#governance">Governance by design</a>.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>5 · Design rules</h3>
+          <div class="id-rules">
+            <div class="id-rule"><strong>Make stop actually stop</strong><span>Cancel generation on the server when the user stops or leaves, or you pay for tokens nobody reads.</span></div>
+            <div class="id-rule"><strong>Limit by tokens, not requests</strong><span>One request can be 50 tokens or 200,000. Quotas and rate limits should count tokens and cost.</span></div>
+            <div class="id-rule"><strong>Design the "I don't know"</strong><span>An honest abstain screen with a route to a person beats a confident wrong answer.</span></div>
+            <div class="id-rule"><strong>Show where it came from</strong><span>Citations let users check an answer in seconds and learn when to trust the system.</span></div>
+            <div class="id-rule"><strong>Treat every input as untrusted</strong><span>Uploaded files, pasted text and web pages can carry prompt injection. Screen them at the edge.</span></div>
+            <div class="id-rule"><strong>Sandbox UI you did not write</strong><span>Tools can now ship their own interface. Render it isolated and require approval for actions it triggers.</span></div>
+          </div>
+          <p class="cap">The last rule is new. In January 2026, MCP Apps became the first official MCP extension: a tool can return an interactive interface that hosts such as Claude, ChatGPT, VS Code and Goose render in a sandboxed iframe. AG-UI standardises the event stream between agent back ends and front ends over SSE or WebSockets. Layer 1 is no longer only the screens you build; it is also the screens your tools bring with them.</p>
+          <span class="kv-note">Sources: J. Nielsen, <i>Usability Engineering</i> (1993), response-time limits of 0.1, 1 and 10 s; M. Brysbaert, “How many words do we read per minute?”, <i>Journal of Memory and Language</i> (2019), 238 wpm for silent reading of non-fiction; WorkOS, “MCP Apps” (27 Jan 2026); Thoughtworks Technology Radar, AG-UI protocol (Trial, Apr 2026). Tokens assume about 0.75 English words per token.</span>
         </div>
       </section>
 
@@ -957,6 +1084,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-10-15",
+    title: "Layer 1: the interface decides whether anyone trusts the answer",
+    layer: "L1 Application",
+    body: [
+      "Starting at the top of the stack. Layer 1 is where people meet the system: a chat window, a copilot inside a tool they already use, a background agent, or an API another service calls. The model decides what the answer says. This layer decides how long the user waits for it, how far they trust it, and what happens when it is wrong.",
+      "Latency is the first part of that contract. Response-time research puts the limits at about 1 second to keep someone's flow and 10 seconds to hold their attention. A 400-token answer at 40 tokens per second takes over 10 seconds to finish, but streamed, the first words land in half a second and the text arrives about 7.5 times faster than people read. Streaming makes time to first token the number users feel. Agents and APIs read the whole response before acting, so for them total latency is still the contract.",
+      "The second part is failure. Autonomy is an interface choice, not a property of the model: act and offer undo when a mistake is cheap and reversible, preview before acting when it is cheap but final, and leave the decision to a named person when it is costly and final. The third part is feedback. Edits, regenerations, stop clicks and escalations happen on every interaction, and logged with the request's trace they become your best eval data. I've added an Inside layer 1 section to the page with all of this, plus six design rules."
+    ],
+    takeaway: "Design Layer 1 for the wrong answer, not the right one: decide what users see while they wait, how they check the output, and how much the system may do before a person looks."
+  },
   {
     date: "2026-10-10",
     title: "Fun fact: every modern LLM traces back to 8 GPUs and 3.5 days",
