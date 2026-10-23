@@ -272,6 +272,12 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 
 /* Inside layer 1 (Day 8) */
 #experience td:first-child { white-space: normal; min-width: 150px; }
+/* Inside layer 2 (Day 9) */
+#orchestration td:first-child { white-space: normal; min-width: 140px; }
+.l2-svg .c-hist { fill: var(--signal); opacity: 0.78; }
+.l2-svg .grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; }
+.l2-rel td { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.l2-rel td.hot { color: var(--signal); font-weight: 600; }
 .ux-svg .th { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
 .ux-svg .ax { stroke: var(--line); stroke-width: 1; }
 .ux-svg .ink { fill: var(--ink); }
@@ -311,7 +317,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -467,6 +473,149 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
           <div><h4>Patterns</h4><ul class="plain"><li><b>Single call</b>: prompt in, answer out</li><li><b>Chain</b>: fixed sequence of calls</li><li><b>Router</b>: classify, then send to a specialist model or prompt</li><li><b>Agent loop</b>: reason → act (tool) → observe → repeat, with a step budget</li></ul></div>
         </div>
         <div class="figure">Agent cost ≈ steps × (prompt tokens + output tokens) — context grows each step, so <b>cost rises faster than linearly</b> without summarisation or caching.</div>
+        <p class="gv-ex"><a href="#orchestration">Inside layer 2 ↓</a> five patterns, the cost and reliability maths of the loop, and the context budget.</p>
+      </section>
+
+      <!-- INSIDE LAYER 2: DAY 9 -->
+      <section id="orchestration">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l2)"><i style="background:var(--l2)"></i>Inside layer 2</span>
+          <h2>Who drives the loop, and what each turn costs</h2>
+        </div>
+        <p>Orchestration is the code between the user and the model: it builds the prompt, calls tools and decides what happens next. Its first design choice is <b>who picks the next step, your code or the model</b>. Everything else in this layer — cost, reliability, how much context the model has to wade through — follows from that answer.</p>
+
+        <div class="kv-panel">
+          <h3>1 · Five patterns, from code-driven to model-driven</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Pattern</th><th>Who picks the next step</th><th>Predictability</th><th>Calls per task</th><th>Use it when</th></tr></thead>
+              <tbody>
+                <tr><td>Single call</td><td>Nobody: there is no next step</td><td>Highest</td><td>1</td><td>Classifying, extracting, or drafting from context you already have</td></tr>
+                <tr><td>Chain</td><td>Your code, in a fixed order</td><td>High</td><td>Known in advance</td><td>The recipe is stable: outline, draft, check</td></tr>
+                <tr><td>Router</td><td>The model picks a branch once; code runs it</td><td>High</td><td>1 decision + 1 specialist</td><td>Mixed traffic where a cheaper model or specialist prompt handles most cases</td></tr>
+                <tr><td>Orchestrator–workers</td><td>The model plans subtasks; workers run them, often in parallel</td><td>Medium</td><td>Depends on the plan</td><td>Research or code changes whose subtasks can't be listed up front</td></tr>
+                <tr><td>Agent loop</td><td>The model, every turn, until it stops or hits a budget</td><td>Lowest</td><td>Unknown until it finishes</td><td>Open-ended work where the path depends on what the tools return</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">Anthropic's <i>Building effective agents</i> draws the line between <b>workflows</b>, where code fixes the path, and <b>agents</b>, where the model chooses it. Each row down buys flexibility and gives up predictability and cost control, so move down only when the task needs it. The router row is where a decision model like <a href="#jev">JEV</a> fits.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · An agent re-reads its whole history on every turn</h3>
+          <div class="kv-svg ux-svg l2-svg">
+            <svg viewBox="0 0 680 247" role="img" aria-label="Bar chart of input tokens sent on each of 20 agent turns. Every bar has the same 4,000-token prefix; history grows by 1,500 tokens per turn, so turn 1 sends 4,000 tokens and turn 20 sends 32,500.">
+              <text x="70" y="209.0" text-anchor="end">0</text>
+              <line class="grid" x1="74" y1="158.8" x2="660" y2="158.8"/>
+              <text x="70" y="162.8" text-anchor="end">10k</text>
+              <line class="grid" x1="74" y1="112.7" x2="660" y2="112.7"/>
+              <text x="70" y="116.7" text-anchor="end">20k</text>
+              <line class="grid" x1="74" y1="66.5" x2="660" y2="66.5"/>
+              <text x="70" y="70.5" text-anchor="end">30k</text>
+              <rect class="c-cache" x="80" y="186.5" width="21" height="18.5"/>
+              <text x="90.5" y="221" text-anchor="middle">1</text>
+              <rect class="c-cache" x="109" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="109" y="179.6" width="21" height="6.9"/>
+              <rect class="c-cache" x="138" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="138" y="172.7" width="21" height="13.8"/>
+              <rect class="c-cache" x="167" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="167" y="165.8" width="21" height="20.8"/>
+              <rect class="c-cache" x="196" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="196" y="158.8" width="21" height="27.7"/>
+              <text x="206.5" y="221" text-anchor="middle">5</text>
+              <rect class="c-cache" x="225" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="225" y="151.9" width="21" height="34.6"/>
+              <rect class="c-cache" x="254" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="254" y="145.0" width="21" height="41.5"/>
+              <rect class="c-cache" x="283" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="283" y="138.1" width="21" height="48.5"/>
+              <rect class="c-cache" x="312" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="312" y="131.2" width="21" height="55.4"/>
+              <rect class="c-cache" x="341" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="341" y="124.2" width="21" height="62.3"/>
+              <text x="351.5" y="221" text-anchor="middle">10</text>
+              <rect class="c-cache" x="370" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="370" y="117.3" width="21" height="69.2"/>
+              <rect class="c-cache" x="399" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="399" y="110.4" width="21" height="76.2"/>
+              <rect class="c-cache" x="428" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="428" y="103.5" width="21" height="83.1"/>
+              <rect class="c-cache" x="457" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="457" y="96.5" width="21" height="90.0"/>
+              <rect class="c-cache" x="486" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="486" y="89.6" width="21" height="96.9"/>
+              <text x="496.5" y="221" text-anchor="middle">15</text>
+              <rect class="c-cache" x="515" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="515" y="82.7" width="21" height="103.8"/>
+              <rect class="c-cache" x="544" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="544" y="75.8" width="21" height="110.8"/>
+              <rect class="c-cache" x="573" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="573" y="68.8" width="21" height="117.7"/>
+              <rect class="c-cache" x="602" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="602" y="61.9" width="21" height="124.6"/>
+              <rect class="c-cache" x="631" y="186.5" width="21" height="18.5"/>
+              <rect class="c-hist" x="631" y="55.0" width="21" height="131.5"/>
+              <text x="641.5" y="221" text-anchor="middle">20</text>
+              <text class="ink" x="641.5" y="47.0" text-anchor="end">turn 20 sends 32,500 tokens</text>
+              <line class="ax" x1="74" y1="205" x2="660" y2="205"/>
+              <text x="355.5" y="237" text-anchor="middle">agent turn</text>
+              <rect class="c-cache" x="80" y="14" width="12" height="12"/><text x="98" y="24">fixed prefix: system prompt + tools (4,000)</text>
+              <rect class="c-hist" x="420" y="14" width="12" height="12"/><text x="438" y="24">history: +1,500 per turn</text>
+            </svg>
+          </div>
+          <div class="kv-eq" aria-label="Across 20 turns the model reads 365,000 input tokens, 4.6 times what 20 separate calls would; with prompt caching the bill is about 74,000 token-equivalents">
+            <div class="kv-tile"><span class="n">365k</span><span class="u">input tokens across 20 turns</span></div><span class="kv-op">=</span>
+            <div class="kv-tile"><span class="n">4.6×</span><span class="u">20 separate calls (80k)</span></div><span class="kv-op">→</span>
+            <div class="kv-tile res"><span class="n">~74k</span><span class="u">token-equivalents with prompt caching</span></div>
+          </div>
+          <p class="cap">Example: a 4,000-token prefix, and each turn adds about 1,500 tokens of reasoning, tool call and tool result. Because every call re-sends everything before it, total input grows with the <b>square</b> of the number of turns, not in step with it. Prompt caching changes the bill, not the shape: cached reads cost about a tenth of normal input on the major APIs (less on some newer models), so this run costs roughly 80% less. The context is still 32,500 tokens long by turn 20, and the model still has to read all of it. That is panel 4. Output tokens are not counted here.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · Reliability compounds too</h3>
+          <div class="tbl">
+            <table class="l2-rel">
+              <thead><tr><th>Each step succeeds</th><th>5 steps</th><th>10 steps</th><th>20 steps</th></tr></thead>
+              <tbody>
+                <tr><td>99%</td><td>95%</td><td>90%</td><td>82%</td></tr>
+                <tr><td>95%</td><td>77%</td><td>60%</td><td class="hot">36%</td></tr>
+                <tr><td>90%</td><td>59%</td><td>35%</td><td class="hot">12%</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">If every step must succeed and failures are independent, the run succeeds at the per-step rate raised to the number of steps. A step that works 95% of the time sounds solid; chain 20 of them and the run finishes cleanly about one time in three. Real agents beat this table because they notice errors and try again — that is what the loop is for. But recovery only happens if it is designed in: tool errors the model can read, steps that are safe to retry, and checks before the steps where a wrong turn gets expensive.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>4 · The context window is a budget, not a bucket</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>In the window</th><th>Why it grows</th><th>What to do</th></tr></thead>
+              <tbody>
+                <tr><td>System instructions</td><td>It shouldn't; this is the stable prefix</td><td>Keep it first and unchanged between turns, so it caches</td></tr>
+                <tr><td>Tool definitions</td><td>Every connected tool adds its schema to every call</td><td>Load only the tools this task needs; search for tools instead of listing hundreds</td></tr>
+                <tr><td>Retrieved content</td><td>Whole files and search results pasted in</td><td>Fetch just in time; keep references (paths, IDs) and pull content when needed</td></tr>
+                <tr><td>Turn history</td><td>Every turn appends to it</td><td>Compact: summarise older turns and drop stale tool output</td></tr>
+                <tr><td>Working notes</td><td>Plans and progress the model must carry forward</td><td>Write them to a file or memory store and re-read on demand</td></tr>
+                <tr><td>Sub-agent output</td><td>A helper returns its full transcript</td><td>Have sub-agents return a condensed result, not their working</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">Bigger windows raise the ceiling; they don't make filling them free. Chroma tested 18 models in 2025 and found accuracy falls as input grows, even on simple retrieval tasks, a pattern it named <b>context rot</b>. On the LongMemEval benchmark, models did markedly better with a focused prompt of about 300 tokens than with the full history of about 113,000. Anthropic calls the discipline <b>context engineering</b>: give the model the smallest set of high-signal tokens it needs for the next step.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>5 · Design rules</h3>
+          <div class="id-rules">
+            <div class="id-rule"><strong>Start with the least autonomy that works</strong><span>A chain you can test beats an agent you can't. Add a loop when the path truly depends on what the tools return.</span></div>
+            <div class="id-rule"><strong>Give every run a budget</strong><span>Cap steps, tokens, wall-clock time and spend. When a cap is hit, stop and report; don't carry on silently.</span></div>
+            <div class="id-rule"><strong>Keep the prefix stable</strong><span>Caching matches on the prefix. A timestamp at the top of the system prompt breaks the cache on every call.</span></div>
+            <div class="id-rule"><strong>Make tool errors readable</strong><span>Return "customer ID not found; try search_customers", not a stack trace. The model can only recover from what it understands.</span></div>
+            <div class="id-rule"><strong>Make steps safe to retry</strong><span>Put idempotency keys on writes, so a retried step doesn't send the email twice.</span></div>
+            <div class="id-rule"><strong>Trace every turn</strong><span>Log prompts, tool calls and results under one trace ID so a bad run can be replayed, and so <a href="#governance">governance</a> has its evidence.</span></div>
+          </div>
+          <span class="kv-note">Sources: E. Schluntz &amp; B. Zhang, “Building effective agents”, Anthropic (Dec 2024); Anthropic, “Effective context engineering for AI agents” (Sep 2025); K. Hong, A. Troynikov &amp; J. Huber, “Context Rot: How increasing input tokens impacts LLM performance”, Chroma (Jul 2025); Claude Platform and OpenAI API prompt-caching docs (accessed Oct 2026). Cost example assumes cache writes at 1.25× and reads at 0.1× base input price.</span>
+        </div>
       </section>
 
       <!-- L3 -->
@@ -1084,6 +1233,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-10-24",
+    title: "Layer 2: an agent is a loop, and every turn costs more than the last",
+    layer: "L2 Orchestration",
+    body: [
+      "Day 9 moves down to layer 2, orchestration: the code between the user and the model that builds the prompt, calls tools and decides what happens next. Its first design choice is who picks the next step. In a chain or a router, your code fixes the path. In an agent loop, the model chooses it every turn. Each step towards the agent buys flexibility and costs predictability, so the right default is the least autonomy that does the job.",
+      "The loop has two kinds of maths that surprise people. Cost: every turn re-sends the whole history, so a 20-turn run with a 4,000-token prefix and 1,500 new tokens per turn reads 365,000 input tokens, 4.6 times what 20 separate calls would. Prompt caching cuts that bill by about 80%, but it doesn't make the context any shorter. Reliability: if each step succeeds 95% of the time and every failure is fatal, a 20-step run finishes cleanly only 36% of the time. Agents beat that number only when recovery is designed in.",
+      "That makes the context window the real design surface. Chroma's tests on 18 models found accuracy drops as input grows, even on simple tasks. Good orchestration keeps the window small on purpose: a stable prefix first, only the tools the task needs, references instead of whole documents, older turns compacted. I've added an Inside layer 2 section to the page with the five patterns, the cost and reliability maths, a context budget and six design rules."
+    ],
+    takeaway: "An agent is a loop, and every turn costs more than the last. Choose the least autonomy that works, give every run a budget, and treat the context window as a budget, not a bucket."
+  },
   {
     date: "2026-10-15",
     title: "Layer 1: the interface decides whether anyone trusts the answer",
