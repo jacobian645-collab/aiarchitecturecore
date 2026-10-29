@@ -272,6 +272,12 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 
 /* Inside layer 1 (Day 8) */
 #experience td:first-child { white-space: normal; min-width: 150px; }
+/* Inside layer 3 (Day 10) */
+#retrieval td:first-child { white-space: normal; min-width: 150px; }
+.l3-rrf td:not(:first-child) { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.l3-rrf td:nth-child(4) { white-space: nowrap; }
+.l3-rrf td.hot { color: var(--signal); font-weight: 600; }
+#retrieval .kv-eq { margin-bottom: 14px; }
 /* Inside layer 2 (Day 9) */
 #orchestration td:first-child { white-space: normal; min-width: 140px; }
 .l2-svg .c-hist { fill: var(--signal); opacity: 0.78; }
@@ -317,7 +323,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#retrieval">Inside L3</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -630,6 +636,131 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
           <div><h4>Query path</h4><ul class="plain"><li>Rewrite or expand the query</li><li>Hybrid search: dense vectors + BM25 keywords</li><li>Rerank top-k with a cross-encoder</li><li>Pack the best passages into the prompt with source IDs</li></ul></div>
         </div>
         <div class="figure">similarity(q, d) = cos θ = (q · d) / (‖q‖ ‖d‖) &nbsp;·&nbsp; measure with <b>recall@k</b>, MRR, and answer faithfulness</div>
+        <p class="gv-ex"><a href="#retrieval">Inside layer 3 ↓</a> seven failure points, hybrid search, long context versus retrieval, and how to measure the retriever.</p>
+      </section>
+
+      <!-- INSIDE LAYER 3: DAY 10 -->
+      <section id="retrieval">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l3)"><i style="background:var(--l3)"></i>Inside layer 3</span>
+          <h2>Most RAG failures happen before the model writes a word</h2>
+        </div>
+        <p>When a RAG system gives a wrong answer, the instinct is to blame the model or rewrite the prompt. More often the model never saw the right passage: it was never indexed, it ranked 31st, or it was cut when the context was packed. <b>Generation can only be as good as what retrieval hands it</b>, so this layer is where answer quality is won or lost.</p>
+
+        <div class="kv-panel">
+          <h3>1 · Seven places a RAG system fails</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Failure point</th><th>Stage</th><th>What it looks like</th><th>First fix</th></tr></thead>
+              <tbody>
+                <tr><td>1 · Missing content</td><td>Corpus</td><td>The answer isn't in any indexed document, but the system answers anyway</td><td>Coverage checks; a clear "not in the documents" response</td></tr>
+                <tr><td>2 · Missed the top-ranked documents</td><td>Retrieve &amp; rank</td><td>The right chunk exists but ranks below the cut-off</td><td>Hybrid search, query rewriting, a reranker</td></tr>
+                <tr><td>3 · Not in context</td><td>Assemble</td><td>Retrieved, then dropped when the prompt was packed</td><td>Rerank before trimming; dedupe; budget the context</td></tr>
+                <tr><td>4 · Not extracted</td><td>Generate</td><td>The answer is in the context, but noise or contradictions hide it</td><td>Fewer, better passages; flag conflicting sources</td></tr>
+                <tr><td>5 · Wrong format</td><td>Generate</td><td>The model ignores the requested table, list or schema</td><td>Structured output with validation</td></tr>
+                <tr><td>6 · Incorrect specificity</td><td>Generate</td><td>Too general or too detailed for what was asked</td><td>Clarifying questions; examples in the prompt</td></tr>
+                <tr><td>7 · Incomplete</td><td>Generate</td><td>Leaves out information that was in the context</td><td>Break multi-part questions into sub-queries</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">From Barnett et al. (2024), drawn from three production RAG case studies in research, education and biomedicine. The first three failures happen before generation, and an end-to-end "was the answer right?" score can't tell them apart from model errors. You only see them if you <b>measure the retriever on its own</b> (panel 5).</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · Retrieval is a pipeline you can tune, step by step</h3>
+          <div class="kv-svg ux-svg">
+            <svg viewBox="0 0 680 210" role="img" aria-label="Retrieval failure rate in the top 20 chunks: 5.7% with embeddings only, 3.7% with contextual embeddings, 2.9% adding contextual BM25, and 1.9% adding a reranker, a 67% reduction.">
+              <text class="ttl" x="0" y="49">Embeddings only</text>
+              <text x="0" y="64">baseline</text>
+              <rect class="c-cache" x="250" y="34" width="340.0" height="24" rx="3"/>
+              <text class="ink" x="598.0" y="51">5.7%</text>
+              <text class="ttl" x="0" y="93">Contextual embeddings</text>
+              <rect class="c-cache" x="250" y="78" width="220.7" height="24" rx="3"/>
+              <text class="ink" x="478.7" y="95">3.7%</text>
+              <text x="522.7" y="95">−35%</text>
+              <text class="ttl" x="0" y="137">+ contextual BM25</text>
+              <text x="0" y="152">hybrid</text>
+              <rect class="c-cache" x="250" y="122" width="173.0" height="24" rx="3"/>
+              <text class="ink" x="431.0" y="139">2.9%</text>
+              <text x="475.0" y="139">−49%</text>
+              <text class="ttl" x="0" y="181">+ reranking</text>
+              <text x="0" y="196">150 → 20</text>
+              <rect class="sig" x="250" y="166" width="113.3" height="24" rx="3"/>
+              <text class="ink" x="371.3" y="183">1.9%</text>
+              <text x="415.3" y="183">−67%</text>
+              <line class="ax" x1="250" y1="24" x2="250" y2="196"/>
+              <text x="250" y="14">share of questions whose answer chunk is missing from the top 20 (1 − recall@20)</text>
+            </svg>
+          </div>
+          <p class="cap">Anthropic's 2024 Contextual Retrieval experiment, averaged across several domains. <b>Contextual embeddings</b> prepend 50–100 tokens of model-written context to each chunk before embedding it, so a chunk that says "revenue grew 3%" also says which company and which quarter. That one-time step cost about $1.02 per million document tokens with prompt caching. Adding keyword search (BM25) and then a reranker, which takes the top 150 candidates and keeps the best 20, cut missed retrievals by two-thirds without touching the generating model. These are a vendor's own benchmark numbers; the pattern, not the exact figures, is what transfers.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · Why hybrid search: meaning and exact matches fail differently</h3>
+          <div class="tbl">
+            <table class="l3-rrf">
+              <thead><tr><th>Chunk</th><th>Dense rank</th><th>BM25 rank</th><th>RRF score</th><th>Fused rank</th></tr></thead>
+              <tbody>
+                <tr><td>B · "Error ERR-4012: token expired"</td><td>3</td><td>1</td><td>1/63 + 1/61 = 0.0323</td><td class="hot">1</td></tr>
+                <tr><td>A · "Troubleshooting sign-in problems"</td><td>1</td><td>9</td><td>1/61 + 1/69 = 0.0309</td><td>2</td></tr>
+                <tr><td>C · "Resetting your password"</td><td>2</td><td>—</td><td>1/62 = 0.0161</td><td>3</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">Query: "what does ERR-4012 mean?" Dense embeddings match meaning, so they rank general sign-in pages highly but blur exact strings like error codes, part numbers and names. BM25 matches the exact token. <b>Reciprocal rank fusion</b> combines the two lists without tuning: each list contributes 1 / (60 + rank), and the sums are re-sorted. The chunk that both methods rate well wins. Here, the exact error page rises to the top.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>4 · A million-token window doesn't retire retrieval</h3>
+          <div class="kv-eq" aria-label="A 300-page manual is about 150,000 tokens per query if you put it all in the window; five retrieved 800-token chunks are 4,000 tokens, about 37 times fewer">
+            <div class="kv-tile"><span class="n">~150k</span><span class="u">tokens: a 300-page manual, every query</span></div><span class="kv-op">vs</span>
+            <div class="kv-tile"><span class="n">4k</span><span class="u">tokens: 5 retrieved chunks of 800</span></div><span class="kv-op">=</span>
+            <div class="kv-tile res"><span class="n">~37×</span><span class="u">fewer input tokens per query</span></div>
+          </div>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Question</th><th>Put it all in the window</th><th>Retrieve</th></tr></thead>
+              <tbody>
+                <tr><td>How big is the corpus?</td><td>Fits in the window, and stays that size</td><td>Larger than any window, or growing</td></tr>
+                <tr><td>Who may read what?</td><td>Everyone can see all of it</td><td>Permissions differ by document or user</td></tr>
+                <tr><td>How often does it change?</td><td>Rarely; cache the prefix and reuse it</td><td>Daily or faster; re-index only what changed</td></tr>
+                <tr><td>Must answers cite a source?</td><td>Possible, but harder to trace</td><td>Each chunk carries its source ID</td></tr>
+                <tr><td>How does the question relate to the text?</td><td>It needs the whole document: summarise, compare, find conflicts</td><td>It needs a few specific facts</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">Long context is the right call for small, stable, whole-document tasks, especially with prompt caching. For everything else, retrieval is cheaper per query, enforces <a href="#identity">permissions</a> at the chunk level, and keeps the window small, which matters because accuracy falls as input grows (see <a href="#orchestration">context rot</a>). The 150k figure assumes about 500 tokens per page.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>5 · Measure the retriever on its own</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Metric</th><th>Question it answers</th><th>Catches</th></tr></thead>
+              <tbody>
+                <tr><td>Recall@k</td><td>Did the right chunk come back in the top k at all?</td><td>Failure 2</td></tr>
+                <tr><td>MRR / nDCG</td><td>How high did it rank?</td><td>Failures 2 and 3</td></tr>
+                <tr><td>Context precision</td><td>How much of what we packed was relevant?</td><td>Failures 3 and 4</td></tr>
+                <tr><td>Faithfulness</td><td>Is every claim in the answer supported by the context?</td><td>Hallucination on top of good retrieval</td></tr>
+                <tr><td>Answer correctness</td><td>Was the final answer right?</td><td>Everything, but can't say where it broke</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">Start with a golden set of 50–200 real questions, each labelled with the passage that answers it, plus some questions the corpus can't answer. Run it on every change to chunking, embeddings or ranking. When answer correctness drops, the retrieval metrics tell you whether to fix the index or the prompt, which is the traceability <a href="#governance">Governance by design</a> asks for.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>6 · Design rules</h3>
+          <div class="id-rules">
+            <div class="id-rule"><strong>Chunk by structure, not by count</strong><span>Split on headings, sections and table boundaries. A chunk that cuts a table in half answers nothing.</span></div>
+            <div class="id-rule"><strong>Hybrid by default</strong><span>Dense plus keyword search, fused. It costs little and fixes the exact-match blind spot.</span></div>
+            <div class="id-rule"><strong>Retrieve wide, rerank narrow</strong><span>Pull 50–150 candidates cheaply, then let a reranker choose the few that enter the prompt.</span></div>
+            <div class="id-rule"><strong>Filter permissions before ranking</strong><span>Store access rights with every chunk and filter on them in the query, so restricted text never reaches the prompt.</span></div>
+            <div class="id-rule"><strong>Design for "not in the documents"</strong><span>When retrieval scores are low, say so and route to a person rather than letting the model fill the gap.</span></div>
+            <div class="id-rule"><strong>Version the index</strong><span>Changing the embedding model means re-embedding everything. Record which model built each index, and re-index changed documents promptly.</span></div>
+          </div>
+          <span class="kv-note">Sources: S. Barnett et al., “Seven Failure Points When Engineering a Retrieval Augmented Generation System”, CAIN 2024 (arXiv:2401.05856); Anthropic, “Introducing Contextual Retrieval” (Sep 2024); G. Cormack, C. Clarke &amp; S. Büttcher, “Reciprocal Rank Fusion outperforms Condorcet and individual rank learning methods”, SIGIR 2009 (k = 60); K. Hong et al., “Context Rot”, Chroma (Jul 2025). RRF example is illustrative.</span>
+        </div>
       </section>
 
       <!-- L4 -->
@@ -1233,6 +1364,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-10-29",
+    title: "Layer 3: most RAG failures happen before the model writes a word",
+    layer: "L3 Knowledge",
+    body: [
+      "Day 10 moves down to layer 3, knowledge and retrieval. When a RAG system gets an answer wrong, teams usually blame the model and rewrite the prompt. More often the model never saw the right passage. A 2024 study of three production RAG systems listed seven failure points, and three of them happen before generation starts: the content was never indexed, the right chunk ranked too low, or it was dropped when the prompt was packed.",
+      "The good news is that retrieval can be tuned step by step. In Anthropic's Contextual Retrieval experiment, the share of questions whose answer chunk was missing from the top 20 fell from 5.7% to 1.9%, a two-thirds cut, without touching the generating model. The steps: add a short, model-written context to each chunk before embedding it, add keyword search alongside vector search, and rerank 150 candidates down to 20. Hybrid search matters because embeddings blur exact strings like error codes and part numbers, and keyword search doesn't.",
+      "Million-token windows don't retire any of this. Putting a 300-page manual in the window costs about 150,000 input tokens per query, against roughly 4,000 for five retrieved chunks, and long inputs lower accuracy. Retrieval also enforces permissions per chunk and keeps a source on every claim. I've added an Inside layer 3 section to the page with the seven failure points, the retrieval results, a hybrid-search example, a long-context decision table, retriever metrics and six design rules."
+    ],
+    takeaway: "Measure the retriever separately from the answer. If you only score final answers, you can't tell an indexing problem from a model problem, and you'll fix the wrong one."
+  },
   {
     date: "2026-10-24",
     title: "Layer 2: an agent is a loop, and every turn costs more than the last",
