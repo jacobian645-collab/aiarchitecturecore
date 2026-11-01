@@ -272,6 +272,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 
 /* Inside layer 1 (Day 8) */
 #experience td:first-child { white-space: normal; min-width: 150px; }
+/* Inside layer 4 (Day 11) */
+.moe-svg .box { fill: var(--sheet); stroke: var(--muted); stroke-width: 1; }
+.moe-svg .on { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.4; }
+.moe-svg .off { fill: none; stroke: var(--line); stroke-dasharray: 3 3; }
+.moe-svg .ln { stroke: var(--ink); stroke-width: 1.2; fill: none; }
+.moe-svg .ln-off { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; fill: none; }
+.moe-svg .mk { fill: var(--ink); }
+.moe-svg .tot-bar { fill: none; stroke: var(--muted); stroke-width: 1; }
+#moe td:first-child { white-space: normal; min-width: 140px; }
+.l4-bill td:not(:first-child) { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.l4-bill td.hot { color: var(--signal); font-weight: 600; }
 /* Inside layer 3 (Day 10) */
 #retrieval td:first-child { white-space: normal; min-width: 150px; }
 .l3-rrf td:not(:first-child) { font-family: var(--mono); font-variant-numeric: tabular-nums; }
@@ -323,7 +334,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#retrieval">Inside L3</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#retrieval">Inside L3</a> · <a href="#moe">Inside L4</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -774,6 +785,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
           <div><h4>Building blocks</h4><ul class="plain"><li>Tokenizer (BPE / SentencePiece), vocab ~32k–256k</li><li>Token embeddings + rotary positions (RoPE)</li><li>Self-attention: multi-head, grouped-query (GQA)</li><li>Feed-forward (SwiGLU) or Mixture-of-Experts</li><li>RMSNorm and residual connections</li></ul></div>
           <div><h4>Variants to know</h4><ul class="plain"><li><b>Dense</b>: every parameter used per token</li><li><b>MoE</b>: router picks top-k experts; large total, small active params</li><li><b>Multimodal</b>: vision/audio encoder projected into token space</li><li><b>Long context</b>: RoPE scaling, sliding-window or sparse attention</li></ul></div>
         </div>
+        <p class="gv-ex"><a href="#moe">Inside layer 4 ↓</a> mixture-of-experts: why a trillion-parameter model can cost less per token than a 405B dense one.</p>
       </section>
 
       <!-- TRANSFORMER BLOCK -->
@@ -844,6 +856,190 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
               <li><b>MoE</b> swaps the single feed-forward for many experts; only top-k run per token.</li>
             </ul>
           </div>
+        </div>
+      </section>
+
+      <!-- INSIDE LAYER 4: DAY 11 -->
+      <section id="moe">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l4)"><i style="background:var(--l4)"></i>Inside layer 4</span>
+          <h2>A trillion parameters, 32 billion at work</h2>
+        </div>
+        <p>The block diagram above has a small note on the feed-forward layer: "or MoE experts". That one swap explains how open models grew past a trillion parameters in 2024–25 without getting proportionally more expensive to run. Kimi K2 holds about 1,040 billion parameters, yet each token passes through only 32 billion of them, about 3%. In a <b>mixture-of-experts</b> (MoE) model, "how big is it?" has two answers: <b>total parameters set the memory bill, active parameters set the compute bill.</b></p>
+
+        <div class="kv-panel">
+          <h3>1 · How a token picks its experts</h3>
+          <div class="kv-svg ux-svg moe-svg">
+            <svg viewBox="0 0 680 218" role="img" aria-label="Mixture-of-experts layer: a router scores eight experts for one token, sends it to the top two, Expert 3 with weight 0.62 and Expert 6 with weight 0.38, and adds their weighted outputs. The other six experts stay idle for this token.">
+              <defs><marker id="moeah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="mk"/></marker></defs>
+              <rect class="box" x="0" y="91" width="112" height="40" rx="4"/>
+              <text class="ttl" x="56" y="108" text-anchor="middle">Token</text>
+              <text x="56" y="123" text-anchor="middle">hidden state</text>
+              <line class="ln" x1="112" y1="111" x2="138" y2="111" marker-end="url(#moeah)"/>
+              <rect class="on" x="140" y="91" width="112" height="40" rx="4"/>
+              <text class="ttl" x="196" y="108" text-anchor="middle">Router</text>
+              <text x="196" y="123" text-anchor="middle">keeps top 2</text>
+              <line class="ln-off" x1="252" y1="111" x2="300" y2="18"/>
+              <rect class="off" x="300" y="8" width="120" height="20" rx="3"/>
+              <text x="360" y="22" text-anchor="middle">Expert 1 · idle</text>
+              <line class="ln-off" x1="252" y1="111" x2="300" y2="44"/>
+              <rect class="off" x="300" y="34" width="120" height="20" rx="3"/>
+              <text x="360" y="48" text-anchor="middle">Expert 2 · idle</text>
+              <line class="ln" x1="252" y1="111" x2="300" y2="70"/>
+              <rect class="on" x="300" y="60" width="120" height="20" rx="3"/>
+              <text class="ink" x="360" y="74" text-anchor="middle">Expert 3</text>
+              <line class="ln-off" x1="252" y1="111" x2="300" y2="96"/>
+              <rect class="off" x="300" y="86" width="120" height="20" rx="3"/>
+              <text x="360" y="100" text-anchor="middle">Expert 4 · idle</text>
+              <line class="ln-off" x1="252" y1="111" x2="300" y2="122"/>
+              <rect class="off" x="300" y="112" width="120" height="20" rx="3"/>
+              <text x="360" y="126" text-anchor="middle">Expert 5 · idle</text>
+              <line class="ln" x1="252" y1="111" x2="300" y2="148"/>
+              <rect class="on" x="300" y="138" width="120" height="20" rx="3"/>
+              <text class="ink" x="360" y="152" text-anchor="middle">Expert 6</text>
+              <line class="ln-off" x1="252" y1="111" x2="300" y2="174"/>
+              <rect class="off" x="300" y="164" width="120" height="20" rx="3"/>
+              <text x="360" y="178" text-anchor="middle">Expert 7 · idle</text>
+              <line class="ln-off" x1="252" y1="111" x2="300" y2="200"/>
+              <rect class="off" x="300" y="190" width="120" height="20" rx="3"/>
+              <text x="360" y="204" text-anchor="middle">Expert 8 · idle</text>
+              <line class="ln" x1="420" y1="70" x2="509" y2="105"/>
+              <text class="ink" x="436" y="66">× 0.62</text>
+              <line class="ln" x1="420" y1="148" x2="509" y2="117"/>
+              <text class="ink" x="436" y="164">× 0.38</text>
+              <circle class="box" cx="520" cy="111" r="12"/>
+              <text class="ink" x="520" y="115" text-anchor="middle">+</text>
+              <line class="ln" x1="532" y1="111" x2="556" y2="111" marker-end="url(#moeah)"/>
+              <rect class="box" x="558" y="91" width="122" height="40" rx="4"/>
+              <text class="ttl" x="619" y="108" text-anchor="middle">Output</text>
+              <text x="619" y="123" text-anchor="middle">to next layer</text>
+              <text x="0" y="176">Next token, same layer:</text>
+              <text x="0" y="191">the router may pick a</text>
+              <text x="0" y="206">different pair</text>
+            </svg>
+          </div>
+          <p class="cap">An MoE layer replaces one large feed-forward network with many smaller ones, the <b>experts</b>. A small learned <b>router</b> scores every expert for each token at each MoE layer, keeps the top k, and mixes their outputs by the router's weights. Attention, embeddings and norms stay shared. The idea is old: Shazeer et al. made it work at scale in 2017, and Google's Switch Transformer (2021) sent each token to one expert and pre-trained up to 7× faster than T5-Base on the same compute. Mixtral 8x7B (Dec 2023) uses 2 of 8 experts and, in Mistral's words, runs "at the same speed and for the same cost as a 12.9B model". Despite the name, experts rarely map to subjects: Mistral's analysis of Mixtral found no clear topic specialisation, with routing following syntax more than domain.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · Big in memory, small per token</h3>
+          <div class="kv-svg ux-svg moe-svg">
+            <svg viewBox="0 0 680 306" role="img" aria-label="Total versus active parameters on one scale. Llama 3.1 405B dense uses all 405B per token. Kimi K2 uses 32B of 1,040B (3.1%), DeepSeek-V3 37B of 671B (5.5%), Llama 4 Maverick 17B of about 400B (4.3%), gpt-oss-120b 5.1B of 117B (4.4%), Llama 4 Scout 17B of 109B (15.6%), Mixtral 8x7B 12.9B of 46.7B (27.6%).">
+              <text x="0" y="14">parameters held in memory (outline) vs used for each token (filled), same scale</text>
+              <text class="ttl" x="0" y="46">Llama 3.1 405B · dense</text>
+              <text x="0" y="61">405B of 405B · 100%</text>
+              <rect class="tot-bar" x="214" y="37" width="171.3" height="22" rx="3"/>
+              <rect class="sig" x="214" y="37" width="171.3" height="22" rx="3"/>
+              <line class="ax" x1="0" y1="69" x2="680" y2="69"/>
+              <text class="ttl" x="0" y="86">Kimi K2</text>
+              <text x="0" y="101">32B of 1,040B · 3.1%</text>
+              <rect class="tot-bar" x="214" y="77" width="440.0" height="22" rx="3"/>
+              <rect class="sig" x="214" y="77" width="13.5" height="22" rx="3"/>
+              <text class="ttl" x="0" y="126">DeepSeek-V3</text>
+              <text x="0" y="141">37B of 671B · 5.5%</text>
+              <rect class="tot-bar" x="214" y="117" width="283.9" height="22" rx="3"/>
+              <rect class="sig" x="214" y="117" width="15.7" height="22" rx="3"/>
+              <text class="ttl" x="0" y="166">Llama 4 Maverick</text>
+              <text x="0" y="181">17B of ~400B · 4.3%</text>
+              <rect class="tot-bar" x="214" y="157" width="169.2" height="22" rx="3"/>
+              <rect class="sig" x="214" y="157" width="7.2" height="22" rx="3"/>
+              <text class="ttl" x="0" y="206">gpt-oss-120b</text>
+              <text x="0" y="221">5.1B of 117B · 4.4%</text>
+              <rect class="tot-bar" x="214" y="197" width="49.5" height="22" rx="3"/>
+              <rect class="sig" x="214" y="197" width="2.2" height="22" rx="3"/>
+              <text class="ttl" x="0" y="246">Llama 4 Scout</text>
+              <text x="0" y="261">17B of 109B · 15.6%</text>
+              <rect class="tot-bar" x="214" y="237" width="46.1" height="22" rx="3"/>
+              <rect class="sig" x="214" y="237" width="7.2" height="22" rx="3"/>
+              <text class="ttl" x="0" y="286">Mixtral 8x7B</text>
+              <text x="0" y="301">12.9B of 46.7B · 27.6%</text>
+              <rect class="tot-bar" x="214" y="277" width="19.8" height="22" rx="3"/>
+              <rect class="sig" x="214" y="277" width="5.5" height="22" rx="3"/>
+            </svg>
+          </div>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Model</th><th>Released</th><th>Experts per MoE layer</th><th>Used per token</th></tr></thead>
+              <tbody>
+                <tr><td>Mixtral 8x7B</td><td>Dec 2023</td><td>8</td><td>2</td></tr>
+                <tr><td>DeepSeek-V3</td><td>Dec 2024</td><td>256 routed + 1 shared</td><td>8 routed + the shared one</td></tr>
+                <tr><td>Llama 4 Maverick</td><td>Apr 2025</td><td>128 routed + 1 shared</td><td>1 routed + the shared one; MoE on alternate layers</td></tr>
+                <tr><td>Kimi K2</td><td>Jul 2025</td><td>384</td><td>8</td></tr>
+                <tr><td>gpt-oss-120b</td><td>Aug 2025</td><td>128</td><td>4</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">The trend runs one way: more, smaller experts, and a smaller share of the model awake for each token, from 2 of 8 in Mixtral to 8 of 384 in Kimi K2. A <b>shared expert</b> sees every token and holds common knowledge, so the routed experts can specialise. Closed frontier labs rarely publish their architectures, so open-weight models are where the numbers are.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · The bill: compute follows active, memory follows total</h3>
+          <div class="kv-eq" aria-label="DeepSeek-V3 holds 671 billion parameters but uses 37 billion per token, about 11 times less compute per token than the dense Llama 3.1 405B">
+            <div class="kv-tile"><span class="n">671B</span><span class="u">parameters held (DeepSeek-V3)</span></div><span class="kv-op">→</span>
+            <div class="kv-tile"><span class="n">37B</span><span class="u">used for each token</span></div><span class="kv-op">=</span>
+            <div class="kv-tile res"><span class="n">~11×</span><span class="u">less compute per token than dense 405B</span></div>
+          </div>
+          <div class="tbl">
+            <table class="l4-bill">
+              <thead><tr><th>Model</th><th>Weights in memory</th><th>Compute per token ≈ 2 × active</th><th>vs dense 405B</th></tr></thead>
+              <tbody>
+                <tr><td>Llama 3.1 405B (dense)</td><td>810 GB at BF16</td><td>810 GFLOP</td><td>1×</td></tr>
+                <tr><td>DeepSeek-V3</td><td>~671 GB at FP8</td><td>74 GFLOP</td><td class="hot">~11× less</td></tr>
+                <tr><td>Kimi K2</td><td>~1.04 TB at FP8</td><td>64 GFLOP</td><td class="hot">~13× less</td></tr>
+                <tr><td>Mixtral 8x7B</td><td>~93 GB at BF16</td><td>26 GFLOP</td><td class="hot">~31× less</td></tr>
+                <tr><td>gpt-oss-120b</td><td>fits one 80 GB GPU (4-bit MXFP4 experts)</td><td>10 GFLOP</td><td class="hot">~79× less</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">Compute uses the rule of thumb of about 2 FLOPs per active parameter per token (Kaplan et al. 2020) and ignores attention over the context. Memory is weights only, before the <a href="#kv">KV cache</a> and activations. The catch is in the second column: at FP8, DeepSeek-V3's 671 GB of weights don't fit on one 8 × 80 GB H100 server (640 GB) and need something like 8 × H200 (1,128 GB). <b>MoE moves the bottleneck from compute to memory capacity and the links between GPUs.</b> In return you get the quality of a much larger dense model: Mistral reported that Mixtral, with 12.9B active parameters, beat Llama 2 70B on most benchmarks.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>4 · What MoE costs you</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Problem</th><th>Why it happens</th><th>What teams do</th></tr></thead>
+              <tbody>
+                <tr><td>Memory capacity</td><td>Every expert must sit in GPU memory, even though only a few run per token</td><td>Size the cluster by total parameters; quantise expert weights (gpt-oss ships them at 4 bits)</td></tr>
+                <tr><td>Load imbalance</td><td>The router learns to favour a few experts; they become hot spots while others starve, or "collapse" and stop learning</td><td>Add a balancing loss (Switch); DeepSeek-V3 instead nudges a per-expert bias, avoiding an extra loss term; cap tokens per expert</td></tr>
+                <tr><td>Communication</td><td>With experts spread across GPUs, every MoE layer sends tokens out to their experts and back (all-to-all)</td><td>Keep expert groups inside the fastest interconnect; DeepSeek-V3 limits each token to experts on at most 4 nodes; overlap compute with transfers</td></tr>
+                <tr><td>Small batches</td><td>At low traffic each expert gets a handful of tokens, so its matrix multiplies are small and GPUs sit idle</td><td>MoE pays off at high, steady throughput; for quiet self-hosted workloads, a smaller dense model can be cheaper</td></tr>
+                <tr><td>Training stability</td><td>Router logits can grow and destabilise training; fine-tuning can shift routing and starve rare experts</td><td>Router z-loss (ST-MoE, 2022); evaluate per domain after fine-tuning; adapt shared layers first</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">None of these show up in a benchmark table. They show up in the serving bill and the p95 latency, which is why an architecture review should ask for both parameter counts and the batch size behind any throughput claim.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>5 · Dense or MoE? It depends on where you sit</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Your situation</th><th>Lean towards</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr><td>Calling a hosted API</td><td>Whatever wins your evals</td><td>The provider carries the memory cost. You see price per token and latency, so judge on those and on quality</td></tr>
+                <tr><td>One GPU or a laptop</td><td>Small dense, or a small MoE that fits</td><td>Memory capacity is the hard limit; gpt-oss-20b (21B total, 3.6B active) runs in 16 GB</td></tr>
+                <tr><td>High, steady traffic on a GPU cluster</td><td>MoE</td><td>Low compute per token, and full batches keep every expert busy</td></tr>
+                <tr><td>Low or spiky traffic, self-hosted</td><td>Smaller dense, or a shared MoE endpoint</td><td>Idle experts still occupy memory you pay for around the clock</td></tr>
+                <tr><td>Heavy domain fine-tuning</td><td>Dense is simpler</td><td>Fewer moving parts; MoE fine-tuning needs care with the router</td></tr>
+                <tr><td>Single-user latency, fits in fast memory</td><td>MoE often wins</td><td>Generating a token is limited by memory bandwidth, and only the active experts' weights are read per token</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">For most enterprise teams the first row applies, and the architecture matters indirectly: MoE is one reason open models got cheaper to serve as they got stronger. It matters directly once you self-host, where the <a href="#scale">hardware</a> and the traffic pattern decide.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>6 · Design rules</h3>
+          <div class="id-rules">
+            <div class="id-rule"><strong>Size memory by total, cost by active</strong><span>Total parameters decide how many GPUs you need. Active parameters decide compute per token. Plan for both.</span></div>
+            <div class="id-rule"><strong>Always quote both numbers</strong><span>Write "37B active / 671B total". Comparing an MoE's total with a dense model's size misleads in both directions.</span></div>
+            <div class="id-rule"><strong>Benchmark at your batch size</strong><span>Published MoE throughput assumes full batches. Measure at your real traffic before you commit hardware.</span></div>
+            <div class="id-rule"><strong>Keep experts on the fastest links</strong><span>Place expert-parallel groups inside one server's interconnect where possible; cross-node all-to-all is where latency hides.</span></div>
+            <div class="id-rule"><strong>Watch expert load in production</strong><span>Log each expert's share of tokens. Imbalance shows up as tail latency before it shows up as quality.</span></div>
+            <div class="id-rule"><strong>Choose by evals, not parameter count</strong><span>Total parameters no longer stand in for capability or cost. Run your own tasks and price the result.</span></div>
+          </div>
+          <span class="kv-note">Sources: N. Shazeer et al., “Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer”, ICLR 2017; W. Fedus, B. Zoph &amp; N. Shazeer, “Switch Transformers”, JMLR 2022 (arXiv:2101.03961); B. Zoph et al., “ST-MoE”, 2022; Mistral AI, “Mixtral of experts” (Dec 2023); DeepSeek-AI, “DeepSeek-V3 Technical Report” (arXiv:2412.19437); Meta, Llama 4 Scout and Maverick (Apr 2025); Kimi Team, “Kimi K2: Open Agentic Intelligence” (arXiv:2507.20534); OpenAI, gpt-oss-120b and gpt-oss-20b model card (Aug 2025); J. Kaplan et al., “Scaling Laws for Neural Language Models”, 2020. Routing weights in panel 1 are illustrative; memory figures are weights only.</span>
         </div>
       </section>
 
@@ -1364,6 +1560,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-11-01",
+    title: "Layer 4: a trillion parameters, 32 billion at work",
+    layer: "L4 Foundation model",
+    body: [
+      "Day 11 moves down to layer 4, the foundation model, and to the change that reshaped it: mixture-of-experts. Instead of one large feed-forward network in each block, an MoE model has many smaller ones, and a small router sends each token to just a few. Kimi K2 holds about 1,040 billion parameters, but each token uses 32 billion of them, about 3%. DeepSeek-V3 uses 37 billion of 671 billion. gpt-oss-120b uses 5.1 billion of 117 billion.",
+      "That splits model size into two numbers. Active parameters set the compute bill: at roughly 2 FLOPs per active parameter, DeepSeek-V3 needs about 11 times less compute per token than the dense Llama 3.1 405B, while holding more parameters. Total parameters set the memory bill: at 8 bits, DeepSeek-V3's weights alone are about 671 GB, more than one 8-GPU H100 server holds. MoE moves the bottleneck from compute to memory capacity and the links between GPUs.",
+      "The costs don't appear in benchmark tables. They appear in the serving bill and tail latency: experts that sit idle but still occupy memory, routers that overload a few experts, all-to-all traffic between GPUs, and poor utilisation at low traffic. I've added an Inside layer 4 section to the page with a routing diagram, total versus active parameters for seven models, the compute and memory maths, what MoE costs, a dense-or-MoE decision table and six design rules."
+    ],
+    takeaway: "Every MoE model has two sizes. Total parameters decide how many GPUs you need; active parameters decide what each token costs. Quote both, and benchmark at your own batch size."
+  },
   {
     date: "2026-10-29",
     title: "Layer 3: most RAG failures happen before the model writes a word",
