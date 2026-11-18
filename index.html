@@ -272,6 +272,9 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 
 /* Inside layer 1 (Day 8) */
 #experience td:first-child { white-space: normal; min-width: 150px; }
+/* Inside layer 5 (Day 12) */
+#adapt td:first-child { white-space: normal; min-width: 150px; }
+#adapt .kv-eq .kv-tile .n { white-space: nowrap; }
 /* Inside layer 4 (Day 11) */
 .moe-svg .box { fill: var(--sheet); stroke: var(--muted); stroke-width: 1; }
 .moe-svg .on { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.4; }
@@ -334,7 +337,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#retrieval">Inside L3</a> · <a href="#moe">Inside L4</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#retrieval">Inside L3</a> · <a href="#moe">Inside L4</a> · <a href="#adapt">Inside L5</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -1055,6 +1058,124 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
           <div><h4>Adaptation ladder (cheapest first)</h4><ul class="plain"><li>Prompting and few-shot examples</li><li>RAG for knowledge that changes</li><li>Parameter-efficient tuning: LoRA / QLoRA adapters</li><li>Full fine-tune for behaviour and format at scale</li></ul></div>
         </div>
         <div class="figure">Training compute ≈ <b>6 · N · D</b> FLOPs (N params, D tokens) &nbsp;·&nbsp; compute-optimal ≈ <b>20 tokens per parameter</b> (Chinchilla)</div>
+        <p class="gv-ex"><a href="#adapt">Inside layer 5 ↓</a> why a 1.3B model beat a 175B one, how LoRA makes adaptation cheap, and the adaptation ladder.</p>
+      </section>
+
+      <!-- INSIDE LAYER 5: DAY 12 -->
+      <section id="adapt">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l5)"><i style="background:var(--l5)"></i>Inside layer 5</span>
+          <h2>A 1.3B model beat a 175B one</h2>
+        </div>
+        <p>In OpenAI's InstructGPT study, people preferred answers from a 1.3-billion-parameter model to answers from the 175-billion-parameter GPT-3, a model with over 100 times more parameters. The architecture was the same. The difference was <b>post-training</b>: a few tens of thousands of prompts of human demonstrations and rankings, on top of a model pre-trained on hundreds of billions of tokens. <b>Pre-training gives a model its knowledge; post-training decides how it uses it.</b> For enterprise teams, the useful corollary is that adapting a model costs a tiny fraction of building one.</p>
+
+        <div class="kv-panel">
+          <h3>1 · Where a model's behaviour comes from</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Stage</th><th>Data</th><th>How much</th><th>What it changes</th></tr></thead>
+              <tbody>
+                <tr><td>Pre-training</td><td>Raw text and code, next-token prediction</td><td>Trillions of tokens (Llama 3: 15T)</td><td>Knowledge, language, reasoning patterns</td></tr>
+                <tr><td>Supervised fine-tuning</td><td>Human-written example answers</td><td>~13k prompts in InstructGPT; 1,000 in LIMA</td><td>Following instructions, answer format</td></tr>
+                <tr><td>Reward model</td><td>People rank several answers to the same prompt</td><td>~33k prompts</td><td>A learned score for "what people prefer"</td></tr>
+                <tr><td>RL from human feedback</td><td>The model's own answers, scored by the reward model (PPO); DPO skips the separate reward model</td><td>~31k prompts</td><td>Helpfulness, tone, when to refuse</td></tr>
+                <tr><td>Your adaptation</td><td>Your tasks, formats and documents</td><td>Hundreds to thousands of examples</td><td>Domain style, output schema, narrow skills</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">Prompt counts are from the InstructGPT paper. Every stage after pre-training uses a sliver of its data, which is why post-training is where most teams, and most of a model's personality, actually live. LIMA (Meta, 2023) pushed this furthest: a 65B model fine-tuned on just <b>1,000 carefully curated examples</b> gave answers judged equivalent or better than GPT-4's in 43% of cases. The authors' reading: knowledge comes from pre-training, and fine-tuning mostly teaches format.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · 100× fewer parameters, and still preferred</h3>
+          <div class="kv-svg ux-svg moe-svg">
+            <svg viewBox="0 0 680 226" role="img" aria-label="InstructGPT results. A 1.3B InstructGPT model, drawn as a tiny square next to a large square for 175B GPT-3, was preferred by human raters. 175B InstructGPT was preferred over GPT-3 85% of the time and over few-shot GPT-3 71% of the time. On closed-domain tasks it made up information 21% of the time versus 41% for GPT-3.">
+              <rect class="tot-bar" x="0" y="30.0" width="170.0" height="170.0" rx="3"/>
+              <text class="ink" x="85.0" y="218" text-anchor="middle">GPT-3 · 175B</text>
+              <rect class="sig" x="196" y="185.3" width="14.7" height="14.7" rx="2"/>
+              <text class="ink" x="190" y="218">InstructGPT · 1.3B</text>
+              <text x="190" y="155.3">preferred by</text>
+              <text x="190" y="169.3">human raters</text>
+              <text x="0" y="14">area ∝ parameters</text>
+              <text x="370" y="24">175B InstructGPT preferred over GPT-3</text><rect class="sig" x="370" y="30" width="212.5" height="16" rx="3"/><text class="ink" x="590.5" y="43">85%</text>
+              <text x="370" y="76">… over GPT-3 with few-shot prompts</text><rect class="sig" x="370" y="82" width="177.5" height="16" rx="3"/><text class="ink" x="555.5" y="95">71%</text>
+              <text x="370" y="128">made-up facts on closed-domain tasks</text>
+              <rect class="tot-bar" x="370" y="134" width="102.5" height="14" rx="3"/><text class="ink" x="480.5" y="146">41% GPT-3</text>
+              <rect class="sig" x="370" y="154" width="52.5" height="14" rx="3"/><text class="ink" x="430.5" y="166">21% InstructGPT</text>
+            </svg>
+          </div>
+          <p class="cap">From Ouyang et al. (2022). Squares are drawn to scale by area. The method: fine-tune GPT-3 on demonstrations, train a reward model on human rankings, then optimise against it with reinforcement learning. It halved made-up facts on closed-domain tasks such as summarisation. It wasn't free: the paper reports an <b>"alignment tax"</b>, small drops on some academic benchmarks, which they reduced by mixing pre-training data back into the RL step. Any adaptation can trade away skills you didn't test, which is why panel 6 starts with evals.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · Why adapting is cheap: LoRA</h3>
+          <div class="kv-svg ux-svg moe-svg">
+            <svg viewBox="0 0 680 200" role="img" aria-label="LoRA: the frozen weight matrix W of 12,288 by 12,288 has about 151 million parameters. LoRA adds the product of two thin matrices, B of 12,288 by 4 and A of 4 by 12,288, which have 98,304 trainable parameters, about 1,536 times fewer.">
+              <rect class="tot-bar" x="0" y="20" width="150" height="150" rx="3"/>
+              <text class="ttl" x="75" y="92" text-anchor="middle">W</text>
+              <text x="75" y="110" text-anchor="middle">frozen</text>
+              <text x="75" y="190" text-anchor="middle">12,288 × 12,288</text>
+              <text class="ttl" x="176" y="100" text-anchor="middle">+</text>
+              <rect class="sig" x="200" y="20" width="10" height="150" rx="2"/>
+              <text class="ttl" x="222" y="100">B</text>
+              <text x="205" y="190" text-anchor="middle">12,288 × 4</text>
+              <text class="ttl" x="252" y="100" text-anchor="middle">×</text>
+              <rect class="sig" x="270" y="20" width="150" height="10" rx="2"/>
+              <text class="ttl" x="345" y="52" text-anchor="middle">A</text>
+              <text x="345" y="70" text-anchor="middle">4 × 12,288</text>
+              <text class="ink" x="460" y="60">frozen: 150,994,944</text>
+              <text class="ink" x="460" y="84">trainable: 98,304</text>
+              <text class="ttl" x="460" y="120">~1,536× fewer</text>
+              <text x="460" y="140">for this one matrix, at rank 4</text>
+            </svg>
+          </div>
+          <div class="kv-eq" aria-label="LoRA on GPT-3 175B: checkpoint from 350 GB to 35 MB, training memory from 1.2 TB to 350 GB, about 10,000 times fewer trainable parameters">
+            <div class="kv-tile"><span class="n">350 GB → 35 MB</span><span class="u">saved checkpoint per task</span></div>
+            <div class="kv-tile"><span class="n">1.2 TB → 350 GB</span><span class="u">GPU memory to train</span></div>
+            <div class="kv-tile res"><span class="n">~10,000×</span><span class="u">fewer trainable parameters</span></div>
+          </div>
+          <p class="cap"><b>Low-rank adaptation</b> (Hu et al., 2021) freezes the original weights and learns a small update, <b>W + B·A</b>, where B and A are thin matrices of rank r. On GPT-3 175B, adapting only the query and value projections at rank 4 matched or beat full fine-tuning on the paper's tasks, trained about 25% faster, and adds no latency at serving time once B·A is merged into W. QLoRA (Dettmers et al., 2023) went further: it fine-tuned a 65B model on a <b>single 48 GB GPU</b> by keeping the frozen weights in 4-bit, and its Guanaco model reached 99.3% of ChatGPT's score on the Vicuna benchmark after 24 hours of training.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>4 · The adaptation ladder: climb one rung at a time</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Rung</th><th>Changes weights?</th><th>Good for</th><th>Wrong tool for</th></tr></thead>
+              <tbody>
+                <tr><td>Prompting &amp; few-shot</td><td>No</td><td>Format, tone, quick tasks; testing whether the model can do the job at all</td><td>Large or private knowledge</td></tr>
+                <tr><td>RAG</td><td>No</td><td>Facts that change, citations, per-user permissions (<a href="#retrieval">Inside L3</a>)</td><td>Changing behaviour or style</td></tr>
+                <tr><td>LoRA / QLoRA adapters</td><td>A small add-on</td><td>Consistent output schema, domain style, narrow tasks; letting a small model replace a large one</td><td>Teaching facts that change often</td></tr>
+                <tr><td>Full fine-tune</td><td>All of them</td><td>Deep behaviour change, when adapters measurably fall short</td><td>Most enterprise needs; expensive to repeat on each new base model</td></tr>
+                <tr><td>Continued pre-training</td><td>All of them</td><td>A new language or a domain with its own vocabulary, given billions of tokens</td><td>Anything a lower rung solves</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">Each rung costs more to build, more to evaluate and more to keep current. The usual pattern in production is a hosted or open model, plus RAG for knowledge, plus at most a LoRA adapter for format and style. Training from scratch is a separate decision, made by very few organisations.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>5 · Fun fact: Llama 3 was trained "too long", on purpose</h3>
+          <div class="kv-eq" aria-label="Chinchilla-optimal training for an 8B model is about 200 billion tokens; Llama 3 8B was trained on 15 trillion tokens, 75 times more">
+            <div class="kv-tile"><span class="n">~200B</span><span class="u">tokens: Chinchilla-optimal for an 8B model</span></div><span class="kv-op">vs</span>
+            <div class="kv-tile"><span class="n">15T</span><span class="u">tokens: what Llama 3 8B saw</span></div><span class="kv-op">=</span>
+            <div class="kv-tile res"><span class="n">75×</span><span class="u">past the "optimal" point</span></div>
+          </div>
+          <p class="cap">The Chinchilla rule (about 20 tokens per parameter, in the Layer 5 box above) gives the best model for a <b>fixed training budget</b>. But training happens once, and serving goes on for the model's whole life. A smaller model trained far longer costs more to build and less on every request after that, the same serving maths as <a href="#kv">the KV cache</a> and <a href="#moe">MoE</a>. Meta reported both Llama 3 8B and 70B "continued to improve log-linearly" up to 15T tokens. By the 6·N·D rule, the 8B run took about 7.2 × 10²³ FLOPs.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>6 · Design rules</h3>
+          <div class="id-rules">
+            <div class="id-rule"><strong>Build the eval set first</strong><span>Task examples plus a regression suite for skills you need to keep. Without it you can't tell gains from the alignment tax.</span></div>
+            <div class="id-rule"><strong>Climb the ladder one rung at a time</strong><span>Prompt, then RAG, then adapters. Fine-tune fully only when an eval shows the lower rungs can't reach the bar.</span></div>
+            <div class="id-rule"><strong>Fine-tune behaviour, retrieve facts</strong><span>Facts baked into weights go stale and can't cite a source. Keep them in the index; teach the model how to answer.</span></div>
+            <div class="id-rule"><strong>Curate before you collect</strong><span>A thousand reviewed examples can beat a hundred thousand scraped ones. Spend the budget on quality and review.</span></div>
+            <div class="id-rule"><strong>One base, many adapters</strong><span>Keep the base model fixed and version a small adapter per task. At tens of megabytes each, they are cheap to store, swap and roll back.</span></div>
+            <div class="id-rule"><strong>Plan for the next base model</strong><span>Adapters are tied to their base. Keep training data and pipelines reproducible so you can re-run them on the next release.</span></div>
+          </div>
+          <span class="kv-note">Sources: L. Ouyang et al., “Training language models to follow instructions with human feedback”, NeurIPS 2022 (arXiv:2203.02155); E. Hu et al., “LoRA: Low-Rank Adaptation of Large Language Models”, 2021 (arXiv:2106.09685); T. Dettmers et al., “QLoRA: Efficient Finetuning of Quantized LLMs”, NeurIPS 2023 (arXiv:2305.14314); C. Zhou et al., “LIMA: Less Is More for Alignment”, NeurIPS 2023 (arXiv:2305.11206); J. Hoffmann et al., “Training Compute-Optimal Large Language Models” (Chinchilla), 2022; Meta, “Introducing Meta Llama 3” (Apr 2024). Benchmark figures are the authors' own.</span>
+        </div>
       </section>
 
       <!-- L6 -->
@@ -1560,6 +1681,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-11-18",
+    title: "Layer 5: a 1.3B model beat a 175B one",
+    layer: "L5 Training & adaptation",
+    body: [
+      "Day 12 moves down to layer 5, training and adaptation. In OpenAI's InstructGPT study, people preferred answers from a 1.3-billion-parameter model to answers from the 175-billion-parameter GPT-3, a model with over 100 times more parameters. Same architecture. The difference was post-training: fine-tuning on human-written examples, then reinforcement learning from human feedback, using a few tens of thousands of prompts. Pre-training gives a model its knowledge; post-training decides how it uses it.",
+      "Adapting a model is also far cheaper than building one. LoRA freezes the original weights and learns a small low-rank update. On GPT-3 175B it cut trainable parameters about 10,000 times, training memory from 1.2 TB to 350 GB, and the saved checkpoint from 350 GB to 35 MB. QLoRA later fine-tuned a 65B model on a single 48 GB GPU. And Meta's LIMA showed 1,000 carefully chosen examples can go a long way.",
+      "For enterprise teams, that makes adaptation a ladder: prompting, then RAG for facts, then a LoRA adapter for format and style, and full fine-tuning only when evals prove the lower rungs fall short. I've added an Inside layer 5 section to the page with the training stages, the InstructGPT results, how LoRA works, the adaptation ladder, why Llama 3 was trained 75 times past the Chinchilla point, and six design rules."
+    ],
+    takeaway: "Fine-tune behaviour, retrieve facts. Build the eval set first, climb the adaptation ladder one rung at a time, and keep one base model with many small adapters."
+  },
   {
     date: "2026-11-01",
     title: "Layer 4: a trillion parameters, 32 billion at work",
