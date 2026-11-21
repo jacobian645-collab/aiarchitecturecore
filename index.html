@@ -272,6 +272,16 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 
 /* Inside layer 1 (Day 8) */
 #experience td:first-child { white-space: normal; min-width: 150px; }
+/* Inside layer 6 (Day 13) */
+#serve td:first-child { white-space: normal; min-width: 140px; }
+#serve .kv-eq .kv-tile .n { white-space: nowrap; }
+#serve .w { fill: var(--l6); }
+#serve .kvr { fill: var(--l6); fill-opacity: 0.4; }
+#serve .m { fill: var(--accent); }
+#serve .ax { stroke: var(--line); }
+#serve .ok { fill: var(--l6); fill-opacity: 0.18; stroke: var(--l6); }
+#serve .no { fill: none; stroke: var(--muted); stroke-dasharray: 4 3; }
+#serve .fix { fill: var(--accent-soft); stroke: var(--accent); }
 /* Inside layer 5 (Day 12) */
 #adapt td:first-child { white-space: normal; min-width: 150px; }
 #adapt .kv-eq .kv-tile .n { white-space: nowrap; }
@@ -337,7 +347,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#retrieval">Inside L3</a> · <a href="#moe">Inside L4</a> · <a href="#adapt">Inside L5</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#retrieval">Inside L3</a> · <a href="#moe">Inside L4</a> · <a href="#adapt">Inside L5</a> · <a href="#serve">Inside L6</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -1195,6 +1205,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
           &nbsp;&nbsp;e.g. 2 × 32 × 8 × 128 × 2 B = <b>128 KiB/token</b> → 8,192-token context ≈ <b>1 GiB per sequence</b><br>
           Inference compute ≈ <b>2 · N</b> FLOPs per generated token
         </div>
+        <p class="gv-ex"><a href="#serve">Inside layer 6 ↓</a> why one user leaves an H100 99.7% idle, the batching trade-off, speculative decoding and the serving levers.</p>
       </section>
 
       <!-- KV CACHE -->
@@ -1332,6 +1343,155 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         </div>
 
         <div class="figure">GPU memory needed ≈ weights + (concurrent users × context tokens × <b>KV bytes per token</b>) + headroom for activations and runtime</div>
+      </section>
+
+      <!-- INSIDE LAYER 6: DAY 13 -->
+      <section id="serve">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l6)"><i style="background:var(--l6)"></i>Inside layer 6</span>
+          <h2>Serving one user, an H100 spends 99.7% of each step waiting on memory</h2>
+        </div>
+        <p>An H100 can do 989 trillion BF16 operations a second and read 3.35 TB from memory a second. Serve an 8B model to one person and each new token needs about 16 billion operations, but also a full read of the model's 16 GB of weights. The maths takes <b>0.016 ms</b>. The read takes <b>4.8 ms</b>. So for one user the chip's maths units sit idle for 99.7% of every step. <b>Decode is a memory problem, not a compute problem</b>, and nearly every serving technique is a way to get more tokens out of each trip to memory. <a href="#kv">The KV cache, explained</a> asked how many conversations fit on a GPU; this section asks how fast they run.</p>
+
+        <div class="kv-panel">
+          <h3>1 · Two jobs, two bottlenecks</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th></th><th>Prefill</th><th>Decode</th></tr></thead>
+              <tbody>
+                <tr><td>What it does</td><td>Reads the whole prompt in one parallel pass and writes its KV cache</td><td>Writes one token per pass, rereading every weight and the KV cache each time</td></tr>
+                <tr><td>Limited by</td><td>Compute (FLOPs)</td><td>Memory bandwidth (bytes per second)</td></tr>
+                <tr><td>The user feels it as</td><td><b>TTFT</b>, time to first token</td><td><b>TPOT</b>, time per output token: streaming speed</td></tr>
+                <tr><td>Grows with</td><td>Prompt length: retrieved chunks, <a href="#orchestration">agent history</a></td><td>Output length × concurrent users</td></tr>
+                <tr><td>Main levers</td><td>Prefix caching, chunked prefill, more FLOPs</td><td>Batching, quantization, speculative decoding, smaller KV cache</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">Prefill processes thousands of prompt tokens at once, so each byte of weights it reads is used thousands of times and the GPU's maths units stay busy. Decode produces one token per conversation per pass, so the same read is used once. One request goes through both, which is why a single "latency" number hides two different problems.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · Where one decode step goes</h3>
+          <div class="kv-svg ux-svg moe-svg">
+            <svg viewBox="0 0 680 200" role="img" aria-label="Time for one decode step of an 8B model on an H100. At batch 1: reading weights takes 4.8 ms, reading the KV cache 0.08 ms, maths 0.016 ms, for 206 tokens per second. At batch 64 with 2,048-token conversations: weights 4.8 ms, KV cache 5.1 ms, maths 1.0 ms, so each step takes 9.9 ms, 101 tokens per second per user and 6,462 in total.">
+              <text class="ink" x="110" y="20">Batch 1 · 4.9 ms per step · 206 tokens/s</text>
+              <text x="0" y="40">memory</text>
+              <rect class="w" x="110.0" y="28" width="257.9" height="16" rx="2"><title>Read 16 GB of weights: 4.78 ms</title></rect>
+              <rect class="kvr" x="367.9" y="28" width="4.3" height="16" rx="2"><title>Read the KV cache of 1 conversation(s): 0.08 ms</title></rect>
+              <text x="0" y="60">maths</text>
+              <rect class="m" x="110.0" y="48" width="2.0" height="16" rx="2"><title>Matrix maths for 1 token(s): 0.016 ms</title></rect>
+              <text class="ink" x="110" y="94">Batch 64 · 9.9 ms per step · 101 tokens/s each, 6,462 in total</text>
+              <text x="0" y="114">memory</text>
+              <rect class="w" x="110.0" y="102" width="257.9" height="16" rx="2"><title>Read 16 GB of weights: 4.78 ms</title></rect>
+              <rect class="kvr" x="367.9" y="102" width="276.9" height="16" rx="2"><title>Read the KV cache of 64 conversation(s): 5.13 ms</title></rect>
+              <text x="0" y="134">maths</text>
+              <rect class="m" x="110.0" y="122" width="55.9" height="16" rx="2"><title>Matrix maths for 64 token(s): 1.035 ms</title></rect>
+              <line class="ax" x1="110" y1="152" x2="650" y2="152"/>
+              <line class="ax" x1="110.0" y1="149" x2="110.0" y2="155"/>
+              <text x="110.0" y="168" text-anchor="middle">0 ms</text>
+              <line class="ax" x1="245.0" y1="149" x2="245.0" y2="155"/>
+              <text x="245.0" y="168" text-anchor="middle">2.5 ms</text>
+              <line class="ax" x1="380.0" y1="149" x2="380.0" y2="155"/>
+              <text x="380.0" y="168" text-anchor="middle">5 ms</text>
+              <line class="ax" x1="515.0" y1="149" x2="515.0" y2="155"/>
+              <text x="515.0" y="168" text-anchor="middle">7.5 ms</text>
+              <line class="ax" x1="650.0" y1="149" x2="650.0" y2="155"/>
+              <text x="650.0" y="168" text-anchor="middle">10 ms</text>
+              <rect class="w" x="110" y="181" width="14" height="10" rx="2"/><text x="130" y="190">read weights</text>
+              <rect class="kvr" x="250" y="181" width="14" height="10" rx="2"/><text x="270" y="190">read KV cache</text>
+              <rect class="m" x="400" y="181" width="14" height="10" rx="2"/><text x="420" y="190">maths</text>
+            </svg>
+          </div>
+          <div class="kv-eq" aria-label="16 GB of weights divided by 3.35 TB per second is 4.8 ms per step, a ceiling of about 209 tokens per second for one user">
+            <div class="kv-tile"><span class="n">16 GB</span><span class="u">weights read every step</span></div><span class="kv-op">÷</span>
+            <div class="kv-tile"><span class="n">3.35 TB/s</span><span class="u">H100 memory bandwidth</span></div><span class="kv-op">=</span>
+            <div class="kv-tile"><span class="n">4.8 ms</span><span class="u">per token, at best</span></div><span class="kv-op">→</span>
+            <div class="kv-tile res"><span class="n">~209</span><span class="u">tokens/s ceiling for one user</span></div>
+          </div>
+          <p class="cap">The H100 can do about <b>295 operations for every byte</b> it reads (989 TFLOPS ÷ 3.35 TB/s). Decode at batch 1 does about <b>1</b>: 2 operations per parameter, 2 bytes per parameter. Batching is the fix: 64 conversations share one read of the weights, so the maths lane fills up. But each conversation's <a href="#kv">KV cache</a> is its own and is read in full every step. At 64 users with 2,048 tokens each, the KV reads already take longer than the weights. <b>Batching shares the weights; it can't share the KV cache.</b></p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · Per-user speed vs total throughput</h3>
+          <div class="kv-bars" role="list" aria-label="Total tokens per second by batch size, with per-user speed">
+<div class="kv-row" title="4.9 ms per step: weights 4.8 ms + KV cache 0.1 ms"><div class="lab">Batch 1<small>206 tok/s each · 4.9 ms</small></div><div class="kv-track"><div class="kv-bar" style="width:2.1%"></div></div><div class="val">206</div></div>
+<div class="kv-row" title="5.4 ms per step: weights 4.8 ms + KV cache 0.6 ms"><div class="lab">Batch 8<small>185 tok/s each · 5.4 ms</small></div><div class="kv-track"><div class="kv-bar" style="width:14.8%"></div></div><div class="val">1,477</div></div>
+<div class="kv-row" title="7.3 ms per step: weights 4.8 ms + KV cache 2.6 ms"><div class="lab">Batch 32<small>136 tok/s each · 7.3 ms</small></div><div class="kv-track"><div class="kv-bar" style="width:43.7%"></div></div><div class="val">4,360</div></div>
+<div class="kv-row" title="9.9 ms per step: weights 4.8 ms + KV cache 5.1 ms"><div class="lab">Batch 64<small>101 tok/s each · 9.9 ms</small></div><div class="kv-track"><div class="kv-bar" style="width:64.7%"></div></div><div class="val">6,462</div></div>
+<div class="kv-row" title="23.8 ms per step: weights 4.8 ms + KV cache 19.1 ms"><div class="lab">Batch 238 (GPU full)<small>42 tok/s each · 23.8 ms</small></div><div class="kv-track"><div class="kv-bar" style="width:100.0%"></div></div><div class="val">9,980</div></div>
+          </div>
+          <p class="cap">Same GPU and model, every conversation at 2,048 tokens. Batch 238 is the limit from <a href="#kv">the KV cache section</a>: the GPU is full. Total throughput rises about <b>48×</b> from batch 1 to 238, while each user's streaming speed falls from 206 to 42 tokens/s. Where you sit on this curve is a product decision: chat needs a TPOT floor, overnight batch jobs only care about the total. Two techniques made large batches practical. <b>Continuous batching</b> (Orca, OSDI 2022) adds and removes requests at every step instead of waiting for a whole batch to finish; on GPT-3 175B it gave <b>36.9×</b> the throughput of NVIDIA FasterTransformer at the same latency. <b>PagedAttention</b> (vLLM, SOSP 2023) stores the KV cache in small blocks like OS memory pages. Earlier systems reserved space for the longest possible answer, so as little as <b>20.4%</b> of KV memory held real tokens; vLLM reached <b>96.3%</b> and 2–4× the throughput at the same latency.</p>
+          <span class="kv-note">Bandwidth ceilings only: 16 GB of BF16 weights, 128 KiB of KV cache per token, 3.35 TB/s. They ignore attention maths, kernel overheads and imperfect overlap, so real engines land below them. The shape is what transfers.</span>
+        </div>
+
+        <div class="kv-panel">
+          <h3>4 · Speculative decoding: spend the idle maths on guesses</h3>
+          <div class="kv-svg ux-svg moe-svg">
+            <svg viewBox="0 0 680 176" role="img" aria-label="Speculative decoding. A small draft model guesses four tokens: the, invoice, is, overdue. The large target model checks all four in one pass, accepts the first three, rejects overdue and supplies its own token, due. That is four tokens from one pass of the large model.">
+              <text class="ink" x="0" y="16">Small draft model guesses 4 tokens, one at a time (cheap)</text>
+              <rect class="tot-bar" x="110" y="26" width="94" height="28" rx="3"/>
+              <text class="ink" x="157" y="45" text-anchor="middle">the</text>
+              <rect class="tot-bar" x="214" y="26" width="94" height="28" rx="3"/>
+              <text class="ink" x="261" y="45" text-anchor="middle">invoice</text>
+              <rect class="tot-bar" x="318" y="26" width="94" height="28" rx="3"/>
+              <text class="ink" x="365" y="45" text-anchor="middle">is</text>
+              <rect class="tot-bar" x="422" y="26" width="94" height="28" rx="3"/>
+              <text class="ink" x="469" y="45" text-anchor="middle">overdue</text>
+              <text class="ink" x="0" y="88">Large target model checks all 4 in a single pass</text>
+              <rect class="ok" x="110" y="98" width="94" height="28" rx="3"/>
+              <text class="ink" x="157" y="117" text-anchor="middle">the ✓</text>
+              <rect class="ok" x="214" y="98" width="94" height="28" rx="3"/>
+              <text class="ink" x="261" y="117" text-anchor="middle">invoice ✓</text>
+              <rect class="ok" x="318" y="98" width="94" height="28" rx="3"/>
+              <text class="ink" x="365" y="117" text-anchor="middle">is ✓</text>
+              <rect class="no" x="422" y="98" width="94" height="28" rx="3"/>
+              <text class="ink" x="469" y="117" text-anchor="middle">overdue ✗</text>
+              <rect class="fix" x="526" y="98" width="94" height="28" rx="3"/>
+              <text class="ink" x="573" y="117" text-anchor="middle">due</text>
+              <text x="573" y="142" text-anchor="middle">target's own token</text>
+              <text x="0" y="117">result</text>
+              <text class="ttl" x="110" y="166">4 tokens from one pass of the large model, instead of 1</text>
+            </svg>
+          </div>
+          <div class="kv-eq" aria-label="With 4 drafted tokens and an 80 percent acceptance rate, each pass of the large model yields about 3.4 tokens on average">
+            <div class="kv-tile"><span class="n">γ = 4</span><span class="u">tokens drafted per round</span></div><span class="kv-op">+</span>
+            <div class="kv-tile"><span class="n">α = 0.8</span><span class="u">chance each guess is accepted</span></div><span class="kv-op">→</span>
+            <div class="kv-tile res"><span class="n">~3.4</span><span class="u">tokens per large-model pass</span></div>
+          </div>
+          <p class="cap">Checking 4 tokens costs the large model about the same as writing 1, because the pass is paid for in memory reads (panel 2), not maths. A small draft model guesses ahead; the large model verifies all the guesses at once and keeps the longest correct run, plus one token of its own. Leviathan et al. (Google, ICML 2023) showed the acceptance rule leaves the output distribution <b>exactly</b> as if the large model had worked alone, and measured <b>2–3×</b> faster decoding on T5-XXL. The expected yield is (1 − α<sup>γ+1</sup>) ÷ (1 − α); the speed-up is lower once you pay for the draft model. Gains shrink at large batch sizes, where the spare maths is already in use.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>5 · The serving levers</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Lever</th><th>Attacks</th><th>What it buys</th><th>What it costs</th></tr></thead>
+              <tbody>
+                <tr><td>Continuous batching</td><td>GPU idle while a batch waits for its slowest request</td><td>Orca: 36.9× throughput at the same latency; now standard in vLLM, SGLang and TensorRT-LLM</td><td>Per-user speed falls as the batch grows (panel 3)</td></tr>
+                <tr><td>Paged KV cache</td><td>Memory reserved but never used</td><td>vLLM: KV memory in use 20.4% → 96.3%; 2–4× throughput</td><td>Custom attention kernels; little else</td></tr>
+                <tr><td>FP8 or INT4 weights</td><td>Bytes read per step</td><td>FP8 halves the weight read: the 4.8 ms step floor becomes 2.4 ms</td><td>Possible quality loss; run your <a href="#adapt">eval set</a> before and after</td></tr>
+                <tr><td>Prefix caching</td><td>Repeated prefill of the same prompt start</td><td>Shared system prompts and documents processed once (<a href="#kv">KV cache</a>, <a href="#orchestration">prompt caching</a>)</td><td>Helps only when requests share an exact prefix</td></tr>
+                <tr><td>Speculative decoding</td><td>One large-model pass per token</td><td>2–3× faster decode, identical outputs (panel 4)</td><td>A draft model to host and keep in step; less gain at high load</td></tr>
+                <tr><td>Disaggregated prefill and decode</td><td>Long prefills stalling everyone's decode</td><td>DistServe: 7.4× more requests, or 12.6× tighter latency targets</td><td>KV cache must move between GPUs; needs fast links</td></tr>
+                <tr><td>Fewer active parameters</td><td>Everything above</td><td>A smaller dense model, or an <a href="#moe">MoE</a> that reads only its active experts</td><td>Quality, or memory capacity for MoE</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">If you call a hosted API, the provider pulls these levers for you, and you see them as price, rate limits and a cheaper "batch" tier that trades latency for throughput. If you self-host, they are your job, and the order above is roughly the order to reach for them.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>6 · Design rules</h3>
+          <div class="id-rules">
+            <div class="id-rule"><strong>Set two latency targets, not one</strong><span>TTFT for how fast it starts, TPOT for how fast it streams. Each has different causes and different fixes.</span></div>
+            <div class="id-rule"><strong>Measure goodput, not throughput</strong><span>Count the requests per second that meet both targets. Throughput alone rewards batches so big nobody wants to wait for them.</span></div>
+            <div class="id-rule"><strong>Ask for the batch size behind every number</strong><span>"Tokens per second" means nothing without batch size, context length and precision. A vendor's best figure is usually at the batch you won't run.</span></div>
+            <div class="id-rule"><strong>Size GPUs by bytes, not FLOPs</strong><span>Decode speed tracks memory bandwidth, and capacity tracks memory size. Budget weights plus KV cache before comparing compute.</span></div>
+            <div class="id-rule"><strong>Split interactive and bulk traffic</strong><span>Run chat at a TPOT floor and send evals, backfills and summaries to large batches or a batch API off-peak.</span></div>
+            <div class="id-rule"><strong>Quantize with evidence</strong><span>FP8 is often close to free, INT4 less so. Re-run your eval set on the quantized model before it serves a single user.</span></div>
+          </div>
+          <span class="kv-note">Sources: G.-I. Yu et al., “Orca: A Distributed Serving System for Transformer-Based Generative Models”, OSDI 2022; W. Kwon et al., “Efficient Memory Management for Large Language Model Serving with PagedAttention”, SOSP 2023 (arXiv:2309.06180); Y. Leviathan, M. Kalman, Y. Matias, “Fast Inference from Transformers via Speculative Decoding”, ICML 2023 (arXiv:2211.17192); Y. Zhong et al., “DistServe: Disaggregating Prefill and Decoding for Goodput-optimized LLM Serving”, OSDI 2024 (arXiv:2401.09670); NVIDIA H100 datasheet (SXM: 3.35 TB/s, 989 TFLOPS dense BF16). Step times are back-of-envelope bandwidth ceilings; benchmark figures are the authors' own.</span>
+        </div>
       </section>
 
       <!-- L7 -->
@@ -1681,6 +1841,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-11-21",
+    title: "Layer 6: serving one user, an H100 spends 99.7% of each step waiting on memory",
+    layer: "L6 Inference & serving",
+    body: [
+      "Day 13 moves down to layer 6, inference and serving. An H100 can do 989 trillion operations a second, but serving an 8B model to one person it barely uses them. Each new token needs about 16 billion operations, which take 0.016 ms, and a full read of the 16 GB of weights, which takes 4.8 ms. Decode is a memory problem, not a compute problem.",
+      "Almost every serving technique is a way to get more tokens out of each trip to memory. Batching lets many users share one read of the weights: on the same GPU, total throughput rises about 48 times from 1 user to 238, while each user's streaming speed falls from about 206 to 42 tokens a second. Continuous batching and PagedAttention made large batches practical. Speculative decoding spends the idle maths on guesses from a small draft model and gets 2 to 3 times faster decoding with identical outputs. The catch: batching shares the weights, but every conversation's KV cache is its own.",
+      "I've added an Inside layer 6 section to the page with prefill vs decode, where one decode step's time goes, the per-user vs total throughput curve, how speculative decoding works, seven serving levers with their costs, and six design rules."
+    ],
+    takeaway: "Set separate targets for time to first token and time per output token, measure goodput rather than raw throughput, and size GPUs by memory bandwidth and capacity before FLOPs."
+  },
   {
     date: "2026-11-18",
     title: "Layer 5: a 1.3B model beat a 175B one",
