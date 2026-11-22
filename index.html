@@ -272,6 +272,16 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 
 /* Inside layer 1 (Day 8) */
 #experience td:first-child { white-space: normal; min-width: 150px; }
+/* Inside layer 7 (Day 14) */
+#corpus td:first-child { white-space: normal; min-width: 120px; }
+#corpus .kv-eq .kv-tile .n { white-space: nowrap; }
+#corpus .kv-tile.res { border-color: var(--l7); }
+#corpus .kv-bar { background: var(--muted); opacity: 0.55; }
+#corpus .kv-bar.hi { background: var(--l7); opacity: 1; }
+#corpus .ax { stroke: var(--line); }
+#corpus .curve { fill: none; stroke: var(--l7); stroke-width: 2.5; }
+#corpus .dot { fill: var(--l7); }
+#corpus .tot-bar { fill: var(--l7); fill-opacity: 0.08; stroke: none; }
 /* Inside layer 6 (Day 13) */
 #serve td:first-child { white-space: normal; min-width: 140px; }
 #serve .kv-eq .kv-tile .n { white-space: nowrap; }
@@ -347,7 +357,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#retrieval">Inside L3</a> · <a href="#moe">Inside L4</a> · <a href="#adapt">Inside L5</a> · <a href="#serve">Inside L6</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#retrieval">Inside L3</a> · <a href="#moe">Inside L4</a> · <a href="#adapt">Inside L5</a> · <a href="#serve">Inside L6</a> · <a href="#corpus">Inside L7</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -1505,6 +1515,120 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
           <div><h4>Components</h4><ul class="plain"><li>Ingestion from lakes, warehouses, SaaS sources</li><li>Deduplication (exact + MinHash near-dup)</li><li>Quality and toxicity filtering, PII redaction</li><li>Labelling and synthetic data generation</li></ul></div>
           <div><h4>Controls</h4><ul class="plain"><li>Lineage: which data trained or grounded which output</li><li>Access control carried into the retrieval index</li><li>Versioned datasets and eval sets</li><li>Retention and consent rules</li></ul></div>
         </div>
+        <p class="gv-ex"><a href="#corpus">Inside layer 7 ↓</a> one sentence copied 61,036 times, how MinHash finds near-duplicates, why quality beats quantity, and the same failures in your RAG index.</p>
+      </section>
+
+      <!-- INSIDE LAYER 7: DAY 14 -->
+      <section id="corpus">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l7)"><i style="background:var(--l7)"></i>Inside layer 7</span>
+          <h2>One 61-word sentence, copied 61,036 times</h2>
+        </div>
+        <p>C4, the web corpus Google built to train T5, contains a single 61-word English sentence that appears <b>61,036 times</b> in the training split, and 61 more times in the validation split. When Lee et al. (ACL 2022) removed duplicates like it, models trained on the cleaner data repeated memorised text <b>ten times less often</b> and needed fewer training steps to reach the same accuracy. Nothing about the model changed. <b>Layer 7 is where model quality is decided before training starts</b>, and the same few steps — filter, deduplicate, redact, version, trace — decide the quality of your RAG index, fine-tuning set and eval set too.</p>
+
+        <div class="kv-panel">
+          <h3>1 · From crawl to corpus: what the pipeline throws away</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Stage</th><th>What it does</th><th>In FineWeb (Hugging Face, 2024)</th><th>Your enterprise version</th></tr></thead>
+              <tbody>
+                <tr><td>Collect &amp; extract</td><td>Pull raw pages or files, strip markup and boilerplate</td><td>96 Common Crawl snapshots</td><td>SharePoint, wikis, tickets, PDFs, data warehouse tables</td></tr>
+                <tr><td>Filter</td><td>Drop blocked URLs, wrong languages, spam and low-quality text</td><td>URL blocklist, fastText language ID, quality heuristics</td><td>Drop drafts, templates, auto-generated pages, wrong-language copies</td></tr>
+                <tr><td>Deduplicate</td><td>Remove exact and near-duplicate documents</td><td>MinHash on 5-word shingles, 112 hash functions</td><td>Collapse copies and old versions to one current source</td></tr>
+                <tr><td>Redact</td><td>Remove or mask personal data</td><td>Emails and IP addresses reformatted</td><td>PII and secrets masked; access labels attached to every chunk</td></tr>
+                <tr><td>Select for quality</td><td>Keep what teaches the most</td><td>FineWeb-Edu: classifier keeps 1.3T of 15T tokens</td><td>Owner-approved, in-date documents; reviewed fine-tuning examples</td></tr>
+                <tr><td>Version &amp; trace</td><td>Record what went in, from where, when</td><td>Released code, ablation models and dataset cards</td><td>Lineage from every answer back to source, version and owner</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">FineWeb is a 15-trillion-token open dataset built from 96 Common Crawl snapshots, and its authors trained small models to measure each step's effect. For FineWeb-Edu they had Llama-3-70B-Instruct rate 460,000 pages for educational value, trained a cheap classifier on those ratings, and ran it over everything. Keeping about <b>9%</b> of the tokens gave clearly better scores on knowledge and reasoning benchmarks such as MMLU and ARC. Most of a good corpus is what you chose to leave out.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · Why duplicates hurt</h3>
+          <div class="kv-eq" aria-label="61,036 copies of one sentence in C4; deduplication cut memorised output tenfold; over 4 percent of standard validation sets overlapped with training data">
+            <div class="kv-tile"><span class="n">61,036</span><span class="u">copies of one sentence in C4</span></div>
+            <div class="kv-tile"><span class="n">&gt;1%</span><span class="u">of unprompted output copied verbatim from training data</span></div>
+            <div class="kv-tile"><span class="n">&gt;4%</span><span class="u">of standard validation sets overlapped with training</span></div>
+            <div class="kv-tile res"><span class="n">10×</span><span class="u">less memorised text after deduplication</span></div>
+          </div>
+          <p class="cap">From Lee et al., “Deduplicating Training Data Makes Language Models Better”. The repeated sentence is marketing filler that begins <i>“by combining fantastic ideas, interesting arrangements, and follow the current trends”</i>. Duplicates do three kinds of damage. They <b>overweight</b> whatever happens to be copied most, so the model learns boilerplate. They cause <b>memorisation</b>, the root of verbatim leaks of personal or copyrighted text. And they <b>inflate eval scores</b> when test questions are also in the training data. The authors found deduplication had no downside on the quality measures they tested.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · How you find near-duplicates in billions of documents: MinHash</h3>
+          <div class="kv-svg ux-svg moe-svg">
+            <svg viewBox="0 0 680 236" role="img" aria-label="MinHash with 14 bands of 8 hashes. Chance a document pair is flagged as duplicates, by similarity: 5% at 0.5, 56% at 0.7, 92% at 0.8, and about 100% at 0.9. The curve rises steeply around 0.72.">
+              <rect class="tot-bar" x="490.0" y="20" width="140.0" height="160" rx="0"/>
+              <text x="560.0" y="172" text-anchor="middle">near-duplicates</text>
+              <line class="ax" x1="70" y1="180.0" x2="630" y2="180.0"/>
+              <text x="62" y="184.0" text-anchor="end">0%</text>
+              <line class="ax" x1="70" y1="100.0" x2="630" y2="100.0"/>
+              <text x="62" y="104.0" text-anchor="end">50%</text>
+              <line class="ax" x1="70" y1="20.0" x2="630" y2="20.0"/>
+              <text x="62" y="24.0" text-anchor="end">100%</text>
+              <text x="70.0" y="198" text-anchor="middle">0.00</text>
+              <text x="210.0" y="198" text-anchor="middle">0.25</text>
+              <text x="350.0" y="198" text-anchor="middle">0.50</text>
+              <text x="490.0" y="198" text-anchor="middle">0.75</text>
+              <text x="630.0" y="198" text-anchor="middle">1.00</text>
+              <polyline class="curve" points="70.0,180.0 75.6,180.0 81.2,180.0 86.8,180.0 92.4,180.0 98.0,180.0 103.6,180.0 109.2,180.0 114.8,180.0 120.4,180.0 126.0,180.0 131.6,180.0 137.2,180.0 142.8,180.0 148.4,180.0 154.0,180.0 159.6,180.0 165.2,180.0 170.8,180.0 176.4,180.0 182.0,180.0 187.6,180.0 193.2,180.0 198.8,180.0 204.4,180.0 210.0,180.0 215.6,180.0 221.2,179.9 226.8,179.9 232.4,179.9 238.0,179.9 243.6,179.8 249.2,179.8 254.8,179.7 260.4,179.6 266.0,179.5 271.6,179.4 277.2,179.2 282.8,179.0 288.4,178.8 294.0,178.5 299.6,178.2 305.2,177.8 310.8,177.4 316.4,176.9 322.0,176.3 327.6,175.6 333.2,174.7 338.8,173.8 344.4,172.7 350.0,171.5 355.6,170.0 361.2,168.4 366.8,166.6 372.4,164.5 378.0,162.2 383.6,159.6 389.2,156.8 394.8,153.6 400.4,150.1 406.0,146.2 411.6,142.0 417.2,137.5 422.8,132.5 428.4,127.3 434.0,121.7 439.6,115.8 445.2,109.6 450.8,103.1 456.4,96.5 462.0,89.7 467.6,82.8 473.2,76.0 478.8,69.3 484.4,62.8 490.0,56.5 495.6,50.7 501.2,45.2 506.8,40.3 512.4,36.0 518.0,32.2 523.6,29.1 529.2,26.5 534.8,24.5 540.4,23.0 546.0,21.9 551.6,21.1 557.2,20.6 562.8,20.3 568.4,20.1 574.0,20.1 579.6,20.0 585.2,20.0 590.8,20.0 596.4,20.0 602.0,20.0 607.6,20.0 613.2,20.0 618.8,20.0 624.4,20.0 630.0,20.0"/>
+              <circle class="dot" cx="350.0" cy="171.5" r="4"><title>Similarity 0.5: flagged 5% of the time</title></circle>
+              <text class="ink" x="342.0" y="163.5" text-anchor="end">5%</text>
+              <circle class="dot" cx="462.0" cy="89.7" r="4"><title>Similarity 0.7: flagged 56% of the time</title></circle>
+              <text class="ink" x="454.0" y="81.7" text-anchor="end">56%</text>
+              <circle class="dot" cx="518.0" cy="32.2" r="4"><title>Similarity 0.8: flagged 92% of the time</title></circle>
+              <text class="ink" x="526.0" y="48.2" text-anchor="start">92%</text>
+              <circle class="dot" cx="574.0" cy="20.1" r="4"><title>Similarity 0.9: flagged 100% of the time</title></circle>
+              <text class="ink" x="582.0" y="12.1" text-anchor="start">~100%</text>
+              <text x="350" y="216" text-anchor="middle">Jaccard similarity of two documents' 5-word shingles</text>
+              <text x="70" y="12">chance the pair is flagged as duplicates</text>
+            </svg>
+          </div>
+          <p class="cap">Comparing every pair of documents is impossible at web scale. MinHash shrinks each document to a short signature: split it into overlapping 5-word <b>shingles</b>, hash them 112 ways, keep the minimum for each. Two documents share any one minimum with probability equal to their <b>Jaccard similarity</b> (shared shingles ÷ all shingles). FineWeb groups the 112 values into 14 bands of 8 and flags a pair if any band matches exactly, so the chance of a flag is 1 − (1 − s<sup>8</sup>)<sup>14</sup>. That turns into a sharp switch around 0.72: pairs that are 90% alike are almost always caught, and pairs that are 50% alike are rarely flagged. Changing the band sizes moves the switch. One surprise from the FineWeb ablations: deduplicating each snapshot on its own worked better than deduplicating all 96 snapshots against each other.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>4 · Quality beats quantity</h3>
+          <div class="kv-bars" role="list" aria-label="HumanEval pass at 1 by model">
+<div class="kv-row" title="phi-1: 1.3B params · 7B tokens; HumanEval pass@1 50.6%"><div class="lab">phi-1<small>1.3B params · 7B tokens</small></div><div class="kv-track"><div class="kv-bar hi" style="width:84.3%"></div></div><div class="val">50.6%</div></div>
+<div class="kv-row" title="StarCoder: 15.5B params · 1T tokens; HumanEval pass@1 33.6%"><div class="lab">StarCoder<small>15.5B params · 1T tokens</small></div><div class="kv-track"><div class="kv-bar" style="width:56.0%"></div></div><div class="val">33.6%</div></div>
+<div class="kv-row" title="CodeGen-Mono-16.1B: 16.1B params · 577B tokens; HumanEval pass@1 29.3%"><div class="lab">CodeGen-Mono-16.1B<small>16.1B params · 577B tokens</small></div><div class="kv-track"><div class="kv-bar" style="width:48.8%"></div></div><div class="val">29.3%</div></div>
+<div class="kv-row" title="Codex-12B: 12B params · 100B tokens; HumanEval pass@1 28.8%"><div class="lab">Codex-12B<small>12B params · 100B tokens</small></div><div class="kv-track"><div class="kv-bar" style="width:48.0%"></div></div><div class="val">28.8%</div></div>
+          </div>
+          <p class="cap">Microsoft's phi-1 (“Textbooks Are All You Need”, 2023) is a 1.3B-parameter coding model trained for 4 days on 8 A100 GPUs, on about 6B tokens of “textbook quality” web code plus 1B tokens of textbooks and exercises written by GPT-3.5. It scored <b>50.6%</b> on the HumanEval Python benchmark, ahead of models with 12× the parameters and up to 140× the data. Scores are self-reported in the phi-1 paper's comparison table. Synthetic data was part of the recipe, and that is the double edge of panel 5: a filtered, purpose-built synthetic set helped; feeding a model its own unfiltered output does the opposite.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>5 · The same failures in your data</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Problem</th><th>In pre-training</th><th>In your RAG index, fine-tune and eval sets</th><th>Control</th></tr></thead>
+              <tbody>
+                <tr><td>Duplicates</td><td>Memorisation, boilerplate learned as style</td><td>Five copies of one policy fill all five retrieved slots and crowd out the other sources</td><td>Near-duplicate detection at ingest; one canonical copy</td></tr>
+                <tr><td>Stale versions</td><td>Outdated facts baked into weights</td><td>The 2023 policy outranks the 2025 one because it has more inbound links and copies</td><td>Version and effective-date metadata; retire superseded docs</td></tr>
+                <tr><td>Personal data</td><td>Verbatim leaks of names, emails, numbers</td><td>A chunk visible to the wrong user, or PII copied into a fine-tuning set</td><td>Redaction plus permission labels carried into the index (<a href="#identity">Identity &amp; policy</a>)</td></tr>
+                <tr><td>Contamination</td><td>Benchmark questions in the training data</td><td>Eval questions copied into the fine-tuning set, so scores look better than reality</td><td>Hash-check eval items against training sets before every run</td></tr>
+                <tr><td>Synthetic loops</td><td><b>Model collapse</b>: rare cases disappear generation by generation</td><td>Indexing AI-drafted documents, or fine-tuning on your model's own unchecked outputs</td><td>Tag generated content at creation; keep a human-written reference set</td></tr>
+                <tr><td>No lineage</td><td>Can't say what the model was trained on</td><td>Can't say which document produced a wrong answer, or prove a deletion request was honoured</td><td>Source, version and owner on every chunk and every training example (<a href="#governance">Governance by design</a>)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">Shumailov et al. (Nature, 2024) showed that training indiscriminately on model-generated data causes irreversible defects: the tails of the original distribution vanish first, so models forget the rare cases, which are often the ones that matter most. For enterprises, the more familiar risk is simpler. A 2025 Gartner survey found <b>63%</b> of organisations either lack, or aren't sure they have, the data management practices AI needs, and Gartner predicts that through 2026 organisations will abandon <b>60%</b> of AI projects that aren't supported by AI-ready data.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>6 · Design rules</h3>
+          <div class="id-rules">
+            <div class="id-rule"><strong>Deduplicate at ingest, not at query time</strong><span>Collapse copies and near-copies before they reach the index or training set. Reranking can't fix five slots of the same text.</span></div>
+            <div class="id-rule"><strong>Every chunk carries its passport</strong><span>Source, version, effective date, owner and access label, attached at ingest and kept through every transformation.</span></div>
+            <div class="id-rule"><strong>Retire, don't just add</strong><span>Superseded documents leave the index on a schedule. An index that only grows gets less accurate over time.</span></div>
+            <div class="id-rule"><strong>Fence the eval set</strong><span>Keep eval items out of anything you train or index, and check by hash before every run. A leaked eval measures memory, not skill.</span></div>
+            <div class="id-rule"><strong>Label what machines wrote</strong><span>Tag generated text when it is created. Use synthetic data on purpose and filtered, never by accident.</span></div>
+            <div class="id-rule"><strong>Measure data changes like model changes</strong><span>A new filter, chunker or source gets an A/B against the golden set, the same way FineWeb tested every step.</span></div>
+          </div>
+          <span class="kv-note">Sources: K. Lee et al., “Deduplicating Training Data Makes Language Models Better”, ACL 2022 (arXiv:2107.06499); G. Penedo et al., “The FineWeb Datasets: Decanting the Web for the Finest Text Data at Scale”, NeurIPS 2024 Datasets &amp; Benchmarks (arXiv:2406.17557); S. Gunasekar et al., “Textbooks Are All You Need”, 2023 (arXiv:2306.11644); I. Shumailov et al., “AI models collapse when trained on recursively generated data”, Nature 631, 2024; Gartner, “Lack of AI-Ready Data Puts AI Projects at Risk”, 26 Feb 2025. The RAG examples in panel 5 are illustrative.</span>
+        </div>
       </section>
 
       <!-- L8 -->
@@ -1841,6 +1965,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-11-22",
+    title: "Layer 7: one 61-word sentence, copied 61,036 times",
+    layer: "L7 Data foundation",
+    body: [
+      "Day 14 moves down to layer 7, the data foundation. C4, the web corpus behind Google's T5, contains one 61-word sentence that appears 61,036 times. When researchers removed duplicates like it, models trained on the cleaner data repeated memorised text ten times less often and reached the same accuracy in fewer steps. The model didn't change. The data did.",
+      "Quality beats quantity in the other direction too. Hugging Face's FineWeb-Edu kept about 9% of a 15-trillion-token corpus, chosen by a classifier trained on Llama 3 ratings, and scored clearly better on knowledge and reasoning benchmarks. Microsoft's 1.3B phi-1, trained on about 7B tokens of textbook-quality code, beat coding models with 12 times the parameters. And training carelessly on AI-generated text causes model collapse, where the rare cases disappear first.",
+      "The same failures show up in enterprise RAG and fine-tuning: duplicate documents crowding out retrieval, stale versions outranking current ones, eval questions leaking into training sets, and no lineage back to the source. I've added an Inside layer 7 section to the page with the data pipeline, why duplicates hurt, how MinHash finds near-duplicates at scale, the quality-over-quantity evidence, the enterprise failure table, and six design rules."
+    ],
+    takeaway: "Deduplicate at ingest, attach source, version, owner and access labels to every chunk, retire superseded documents, and keep your eval set fenced off from anything you train or index."
+  },
   {
     date: "2026-11-21",
     title: "Layer 6: serving one user, an H100 spends 99.7% of each step waiting on memory",
