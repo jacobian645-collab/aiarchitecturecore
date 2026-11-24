@@ -272,6 +272,20 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 
 /* Inside layer 1 (Day 8) */
 #experience td:first-child { white-space: normal; min-width: 150px; }
+/* Inside layer 8 (Day 15) */
+#compute td:first-child { white-space: normal; min-width: 150px; }
+#compute .kv-eq .kv-tile .n { white-space: nowrap; }
+#compute .kv-tile.res { border-color: var(--l8); }
+#compute .kv-bar { background: var(--muted); opacity: 0.55; }
+#compute .kv-bar.hi { background: var(--l8); opacity: 1; }
+#compute .kv-row { grid-template-columns: 200px minmax(0, 1fr) 96px; }
+#compute .kv-row .val { white-space: nowrap; }
+@media (max-width: 560px) { #compute .kv-row { grid-template-columns: minmax(0, 1fr) 96px; } }
+#compute .w { fill: var(--l8); }
+#compute .w2 { fill: var(--l8); fill-opacity: 0.7; }
+#compute .o { fill: var(--l8); fill-opacity: 0.32; }
+#compute svg rect { stroke: var(--paper); stroke-width: 1.5; }
+#compute .cap80 { stroke: var(--signal); stroke-width: 1.5; stroke-dasharray: 4 3; }
 /* Inside layer 7 (Day 14) */
 #corpus td:first-child { white-space: normal; min-width: 120px; }
 #corpus .kv-eq .kv-tile .n { white-space: nowrap; }
@@ -357,7 +371,7 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
         <li><a href="#l8"><span class="bar" style="background:var(--l8)"></span><span class="nm">Compute &amp; infrastructure</span><span class="lv">L8</span></a></li>
       </ul>
       <div class="cross"><strong>Cross-cutting</strong> — identity &amp; policy, evaluation, safety &amp; guardrails, observability, governance. <a href="#cross">See below</a>.</div>
-      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#retrieval">Inside L3</a> · <a href="#moe">Inside L4</a> · <a href="#adapt">Inside L5</a> · <a href="#serve">Inside L6</a> · <a href="#corpus">Inside L7</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
+      <div class="cross"><a href="#daily">Daily note</a> · <a href="#experience">Inside L1</a> · <a href="#orchestration">Inside L2</a> · <a href="#retrieval">Inside L3</a> · <a href="#moe">Inside L4</a> · <a href="#adapt">Inside L5</a> · <a href="#serve">Inside L6</a> · <a href="#corpus">Inside L7</a> · <a href="#compute">Inside L8</a> · <a href="#block">Transformer block</a> · <a href="#kv">KV cache</a> · <a href="#identity">Identity &amp; policy</a> · <a href="#governance">Governance by design</a> · <a href="#funfact">Fun fact</a> · <a href="#jev">JEV</a> · <a href="#scale">8 GPUs to 16,384</a> · <a href="#flow">Request lifecycle</a> · <a href="#tradeoffs">Trade-offs</a></div>
     </aside>
 
     <main>
@@ -1642,6 +1656,133 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
           <div><h4>Hardware</h4><ul class="plain"><li>GPUs / TPUs / custom accelerators</li><li>HBM capacity and bandwidth per device</li><li>Intra-node links (NVLink) and inter-node fabric (InfiniBand, RoCE)</li><li>Managed platforms: Azure AI Foundry, Amazon Bedrock / SageMaker, Vertex AI</li></ul></div>
           <div><h4>Parallelism</h4><ul class="plain"><li><b>Data</b>: copies of the model, split the batch</li><li><b>Tensor</b>: split each matrix across devices</li><li><b>Pipeline</b>: split layers into stages</li><li><b>Expert</b>: spread MoE experts across devices</li><li>Sharded optimizers (ZeRO / FSDP)</li></ul></div>
         </div>
+        <p class="gv-ex"><a href="#compute">Inside layer 8 ↓</a> why a 16 GB model needs 128 GB to train, how the load is split across GPUs, why data slows down off the chip, and the rack-scale trend.</p>
+      </section>
+
+      <!-- INSIDE LAYER 8: DAY 15 -->
+      <section id="compute">
+        <div class="sec-head">
+          <span class="layer-tag" style="color:var(--l8)"><i style="background:var(--l8)"></i>Inside layer 8</span>
+          <h2>A 16 GB model needs 128 GB to train</h2>
+        </div>
+        <p>Running a model is light on memory. Training it is not. The 8B model from the <a href="#kv">KV cache</a> and <a href="#serve">serving</a> sections fits on one GPU with room to spare, but training the same model needs <b>eight times the memory</b> before it stores a single activation. So most of the work at layer 8 is not about raw speed. It is about <b>fitting that memory across many GPUs, and moving data between them fast enough</b>.</p>
+
+        <div class="kv-panel">
+          <h3>1 · Training needs 8× the memory of serving</h3>
+          <div class="kv-svg ux-svg">
+            <svg viewBox="0 0 680 168" role="img" aria-label="Serving the 8B model needs 16 GB of weights. Training needs 128 GB: weights 16, gradients 16, an FP32 copy 32, and Adam's two running averages 32 each. One H100 holds 80 GB.">
+              <text x="110" y="42" text-anchor="end" class="ink">serve</text>
+              <rect class="w" x="120" y="26" width="59.4" height="24"><title>Serving: 16 GB of BF16 weights</title></rect>
+              <text x="187.4" y="42">16 GB · weights only</text>
+              <text x="110" y="108" text-anchor="end" class="ink">train</text>
+              <rect class="w" x="120.0" y="92" width="59.4" height="24"><title>weights: 16 GB</title></rect>
+              <text x="124.0" y="86">weights</text>
+              <text x="124.0" y="132">16 GB</text>
+              <rect class="w2" x="179.4" y="92" width="59.4" height="24"><title>grads: 16 GB</title></rect>
+              <text x="183.4" y="86">grads</text>
+              <text x="183.4" y="132">16 GB</text>
+              <rect class="o" x="238.9" y="92" width="118.9" height="24"><title>FP32 copy: 32 GB</title></rect>
+              <text x="242.9" y="86">FP32 copy</text>
+              <text x="242.9" y="132">32 GB</text>
+              <rect class="o" x="357.7" y="92" width="118.9" height="24"><title>Adam m: 32 GB</title></rect>
+              <text x="361.7" y="86">Adam m</text>
+              <text x="361.7" y="132">32 GB</text>
+              <rect class="o" x="476.6" y="92" width="118.9" height="24"><title>Adam v: 32 GB</title></rect>
+              <text x="480.6" y="86">Adam v</text>
+              <text x="480.6" y="132">32 GB</text>
+              <text x="603.4" y="108" class="ink">128 GB</text>
+              <line class="cap80" x1="417.1" y1="18" x2="417.1" y2="140"/>
+              <text x="423.1" y="14">one H100 holds 80 GB</text>
+              <text x="120" y="160">training also needs working memory (activations) on top of this</text>
+            </svg>
+          </div>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>What the GPU holds while training</th><th>Size for an 8B model</th></tr></thead>
+              <tbody>
+                <tr><td>Weights</td><td>16 GB</td></tr>
+                <tr><td>Gradients (how each weight should change)</td><td>16 GB</td></tr>
+                <tr><td>Optimizer's full-precision copy and two running averages</td><td>96 GB</td></tr>
+                <tr><td><b>Total</b></td><td><b>128 GB</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">The rule of thumb comes from the ZeRO paper (Microsoft, 2019): with mixed-precision training and the Adam optimizer, every parameter costs about <b>16 bytes</b>, against 2 bytes to serve it. An 80 GB H100 can't hold the 128 GB, and that's before the working memory training needs on top.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>2 · The fix: split the load across GPUs</h3>
+          <div class="kv-bars" role="list" aria-label="Training memory per GPU for the 8B model: 128 GB on 1 GPU, 16 GB each on 8, 2 GB each on 64">
+<div class="kv-row" title="1 GPU: 128 GB"><div class="lab">1 GPU<small>everything in one place</small></div><div class="kv-track"><div class="kv-bar" style="width:100.0%"></div></div><div class="val">128 GB</div></div>
+<div class="kv-row" title="8 GPUs: 16 GB"><div class="lab">8 GPUs<small>one server, each holds 1/8</small></div><div class="kv-track"><div class="kv-bar hi" style="width:12.5%"></div></div><div class="val">16 GB</div></div>
+<div class="kv-row" title="64 GPUs: 2 GB"><div class="lab">64 GPUs<small>eight servers, each holds 1/64</small></div><div class="kv-track"><div class="kv-bar hi" style="width:1.6%"></div></div><div class="val">2 GB</div></div>
+          </div>
+          <p class="cap">If one GPU can't carry 128 GB, give each GPU a slice. That's the idea behind <b>ZeRO</b> and PyTorch's <b>FSDP</b>: no GPU keeps a full copy of everything, and each fetches the slices it needs just before it uses them. The catch is that GPUs now swap slices all the time. With everything split, ZeRO reports about <b>50% more</b> network traffic than ordinary data parallelism, in return for memory that falls in line with the number of GPUs.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>3 · Data slows down every time it leaves the chip</h3>
+          <div class="kv-bars" role="list" aria-label="Bandwidth per H100: 3,350 GB/s to its own memory, 450 GB/s each way to GPUs in the same server, 50 GB/s to other servers">
+<div class="kv-row" title="On the chip · the counter: 3,350 GB/s"><div class="lab">On the chip · the counter<small>HBM3 memory</small></div><div class="kv-track"><div class="kv-bar hi" style="width:100.0%"></div></div><div class="val">3,350 GB/s</div></div>
+<div class="kv-row" title="Inside the server · the pantry: 450 GB/s"><div class="lab">Inside the server · the pantry<small>NVLink, each direction</small></div><div class="kv-track"><div class="kv-bar" style="width:13.4%"></div></div><div class="val">450 GB/s</div></div>
+<div class="kv-row" title="Between servers · the shop: 50 GB/s"><div class="lab">Between servers · the shop<small>InfiniBand NDR, 400 Gb/s</small></div><div class="kv-track"><div class="kv-bar" style="width:1.5%"></div></div><div class="val">50 GB/s</div></div>
+          </div>
+          <div class="kv-eq" aria-label="Sharing 32 GB of updates takes about 0.07 seconds over NVLink and about 0.63 seconds between servers">
+            <div class="kv-tile"><span class="n">67×</span><span class="u">slower from the chip's memory to the next server</span></div>
+            <div class="kv-tile"><span class="n">~32 GB</span><span class="u">of updates each GPU sends every training step</span></div>
+            <div class="kv-tile"><span class="n">0.07 s</span><span class="u">to send it inside one server</span></div>
+            <div class="kv-tile res"><span class="n">0.63 s</span><span class="u">to send it between servers</span></div>
+          </div>
+          <p class="cap">Think of a kitchen. The chip's own memory is the <b>counter</b>: everything within reach. Other GPUs in the same server are the <b>pantry</b> down the hall. Other servers are the <b>shop</b> down the road. After every training step, every GPU has to share its gradient updates with the others: for the 8B model that is about 32 GB sent per GPU across 64 GPUs. Do that thousands of times and the slowest link decides how long training takes, which is why real systems overlap this traffic with the maths. The timings are illustrative, assuming all traffic moves at that link's speed.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>4 · Put the chatty work close together</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>How you split the work</th><th>How much the GPUs talk</th><th>Where it goes</th></tr></thead>
+              <tbody>
+                <tr><td><b>Split each layer</b> (tensor parallelism)</td><td>Constantly, inside every layer</td><td>Inside one server, over NVLink</td></tr>
+                <tr><td><b>Split the stack of layers</b> (pipeline parallelism)</td><td>Only where one group of layers hands off to the next</td><td>Across servers</td></tr>
+                <tr><td><b>Split the experts</b> (expert parallelism, see <a href="#moe">MoE</a>)</td><td>Every MoE layer, sending tokens to their experts</td><td>Inside the fast zone, ideally</td></tr>
+                <tr><td><b>Split the data</b> (data parallelism, FSDP)</td><td>Once per step, to share updates</td><td>Across the whole cluster</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="cap">The rule is simple: the more two GPUs need to talk, the closer they should sit. Meta trained Llama 3 405B this way, combining four kinds of parallelism. Inside each 8-GPU server, NVLink is fast enough to split every layer. Between servers the links are slower and have higher latency, so the model is split into stages there instead.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>5 · You only get about 40% of what you paid for</h3>
+          <div class="kv-eq" aria-label="Llama 3 405B used 38 to 43 percent of peak compute; PaLM about 46 percent">
+            <div class="kv-tile"><span class="n">38–43%</span><span class="u">of peak compute used training Llama 3 405B</span></div>
+            <div class="kv-tile"><span class="n">46%</span><span class="u">for Google's PaLM</span></div>
+            <div class="kv-tile res"><span class="n">~40%</span><span class="u">a sensible planning number</span></div>
+          </div>
+          <p class="cap">This measure is called <b>MFU</b>, model FLOPs utilisation: the useful maths a training run does, divided by what the GPUs could do at peak. Even well-run frontier training leaves most of the compute idle, waiting on memory, waiting on the network and recovering from failures (Llama 3 405B saw <a href="#scale">419 interruptions in 54 days</a>). When you estimate training time or cost, start from about 40% of the spec-sheet number, not 100%.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>6 · The trend: the whole rack is becoming one big GPU</h3>
+          <div class="kv-eq" aria-label="GB200 NVL72: 72 GPUs in one NVLink domain, 9 times the 8 in an H100 server, 130 TB/s, 120 kilowatts per rack">
+            <div class="kv-tile"><span class="n">8 → 72</span><span class="u">GPUs that talk at full speed</span></div>
+            <div class="kv-tile"><span class="n">130 TB/s</span><span class="u">of GPU-to-GPU bandwidth in one rack</span></div>
+            <div class="kv-tile res"><span class="n">120 kW</span><span class="u">per rack, liquid cooled</span></div>
+          </div>
+          <p class="cap">The fast zone used to be one server of 8 GPUs. NVIDIA's GB200 NVL72 joins <b>72</b> Blackwell GPUs over NVLink in a single rack, so the chatty kinds of splitting from panel 4 now have nine times as many GPUs to work with. The price is power: about 120 kW for one rack, which needs liquid cooling. Power and cooling are now architecture decisions, not just facilities ones, whether you build your own or rent through Azure AI Foundry, Amazon Bedrock and SageMaker, or Vertex AI.</p>
+        </div>
+
+        <div class="kv-panel">
+          <h3>7 · Five things to remember</h3>
+          <div class="id-rules">
+            <div class="id-rule"><strong>Training costs about 16 bytes per parameter</strong><span>Serving costs about 2. Size training hardware for 8× the model, plus activations.</span></div>
+            <div class="id-rule"><strong>Split the memory first</strong><span>Start with FSDP / ZeRO. Add tensor and pipeline splitting only when that isn't enough.</span></div>
+            <div class="id-rule"><strong>Keep chatty work close</strong><span>Splitting layers and experts stays inside one server or rack. Only the less chatty splits cross the network.</span></div>
+            <div class="id-rule"><strong>Plan for about 40% of peak</strong><span>Use MFU, not the spec sheet, for every time and cost estimate.</span></div>
+            <div class="id-rule"><strong>Fine-tune with adapters when you can</strong><span><a href="#adapt">LoRA</a> trains a tiny fraction of the weights, so it skips most of the 128 GB bill.</span></div>
+          </div>
+          <span class="kv-note">Sources: S. Rajbhandari et al., “ZeRO: Memory Optimizations Toward Training Trillion Parameter Models”, SC 2020 (arXiv:1910.02054); Llama Team, Meta, “The Llama 3 Herd of Models”, 2024 (arXiv:2407.21783); A. Chowdhery et al., “PaLM: Scaling Language Modeling with Pathways”, 2022; NVIDIA H100, DGX H100 SuperPOD and GB200 NVL72 product documentation; The Register, “One rack. 120kW of compute”, 21 Mar 2024. Memory sizes, the 32 GB per step and the 0.07 s / 0.63 s timings are this page's arithmetic for the 8B model (BF16 weights and gradients, FP32 optimizer states, ring all-reduce across 64 GPUs).</span>
+        </div>
       </section>
 
       <!-- CROSS-CUTTING -->
@@ -1965,6 +2106,17 @@ footer { margin-top: 64px; padding-top: 18px; border-top: 1px solid var(--line);
 <script>
 /* Daily notes: add a new object at the TOP of this list each day. Newest first. */
 const NOTES = [
+  {
+    date: "2026-11-24",
+    title: "Layer 8: a 16 GB model needs 128 GB to train",
+    layer: "L8 Compute & infrastructure",
+    body: [
+      "Day 15 reaches the bottom of the stack: layer 8, compute and infrastructure. Serving an 8B model takes 16 GB of GPU memory. Training the same model takes about 128 GB, because every weight also needs a gradient and the optimizer's own full-precision notes. That's about 16 bytes per parameter instead of 2, and it doesn't fit on an 80 GB H100.",
+      "The fix is to split the load: with ZeRO or FSDP, 64 GPUs need only about 2 GB each. But now the GPUs have to keep talking, and speed drops every time data leaves the chip: about 3,350 GB/s to the chip's own memory, 450 GB/s to GPUs in the same server, and 50 GB/s to other servers. So the chattiest work stays inside one server, and even well-run training uses only about 40% of the GPUs' peak compute. The newest racks put 72 GPUs in one fast zone, at about 120 kW a rack.",
+      "I've added an Inside layer 8 section to the page with the memory bill, how splitting the load works, the bandwidth ladder, where each kind of parallelism belongs, real-world utilisation, the rack-scale trend, and five things to remember."
+    ],
+    takeaway: "Size training for about 16 bytes per parameter, split memory with FSDP or ZeRO before anything fancier, keep chatty work inside one server or rack, and plan on about 40% of peak compute."
+  },
   {
     date: "2026-11-22",
     title: "Layer 7: one 61-word sentence, copied 61,036 times",
